@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from upload import init_session, upload_data
+from parsing import parse
 class KuSc:
     # 建構式
     def __init__(self, _globData, _tkBox, _loopIndex, _gameIndex):
@@ -64,6 +66,7 @@ class KuSc:
             oldNotice = self.base.json_encode({'data': oldHtml})
             self.base.log(self.gameName + "_" + self.gameIndex, 'setBase', oldNotice)
 
+            connection, channel = init_session('amqp://GTR:565p@rtmcq.nba1688.net:5673/')
             while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
                 print(self.gameIndex + " - " + self.base.getTime("Microseconds"))
                 self.tools.closeScroll(self.base.driver)
@@ -81,7 +84,11 @@ class KuSc:
                     self.base.log(self.gameName + "_" + self.gameIndex, 'change', newNotice)
                 else:
                     self.tkBox.updateLabel(self.loopIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
+                data = parse(newHtml)
+                upload_data(channel, data)
                 self.base.sleep(0.1)
+            channel.close()
+            connection.close()
         except Exception as e:
             print(self.gameName + "_" + u'發生錯誤2')
             self.tkBox.updateLabel(self.loopIndex, u'發生錯誤2 : ' + self.base.getTime("Microseconds"))

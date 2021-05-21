@@ -41,11 +41,11 @@ def begin():
     print(u"足球 btnSC")
     oBtnSC = {
         1: {'title': u"全　場", 'gameIndex': 1},
-        2: {'title': u"角　球", 'gameIndex': 2},
-        3: {'title': u"十五分", 'gameIndex': 7},
-        4: {'title': u"波　膽", 'gameIndex': 4},
-        5: {'title': u"入球數", 'gameIndex': 5},
-        6: {'title': u"半全場", 'gameIndex': 6},
+        # 2: {'title': u"角　球", 'gameIndex': 2},
+        # 3: {'title': u"十五分", 'gameIndex': 7},
+        # 4: {'title': u"波　膽", 'gameIndex': 4},
+        # 5: {'title': u"入球數", 'gameIndex': 5},
+        # 6: {'title': u"半全場", 'gameIndex': 6},
     }
 
     print(u"開啟流程框")
