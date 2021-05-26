@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['C:\\py\\LEO'],
+             pathex=['C:\\py\\ku_crawler'],
              binaries=[],
              datas=[],
              hiddenimports=[],

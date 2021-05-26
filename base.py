@@ -145,26 +145,33 @@ class Base:
         except Exception:
             return False
 
-    def log(self, file_name, _type, text):
+    def log(self, file_name, _type, text, time=True):
         # noinspection PyBroadException
         try:
-            path = 'logs'
-            if not os.path.isdir(path):
-                os.mkdir(path)
+            if time:
+                path = 'logs'
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+                _min = int(self.getTime("%M"))
+                _log_min = '_40_60'
+                print(_min)
+                if _min < 20:
+                    _log_min = '_00_20'
+                elif 20 < _min < 40:
+                    _log_min = '_20_40'
+                txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d_%H") + _log_min + '.txt'
+                f = open(txt_url, "a+")
+                f.write(self.getTime("Microseconds") + '\n')
+            else:
+                path = 'mapping'
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+                txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
+                f = open(txt_url, "a+")
 
-            _min = int(self.getTime("%M"))
-            _log_min = '_40_60'
-            print(_min)
-            if _min < 20:
-                _log_min = '_00_20'
-            elif 20 < _min < 40:
-                _log_min = '_20_40'
-
-            txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d_%H") + _log_min + '.txt'
-            f = open(txt_url, "a+")
-            f.write(self.getTime("Microseconds") + '\n')
             if _type != '':
                 f.write(_type + '\n')
+
             f.write(text + '\n')
             f.close()
         except Exception as e:

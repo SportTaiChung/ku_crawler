@@ -33,7 +33,8 @@ class tkLabel():
     def start(self):
         self.root = tk.Tk()
         self.root.title("Being Studio")
-        self.root.geometry("400x400+0+0")
+        dataLen = str(len(self.data) * 70)
+        self.root.geometry("400x" + dataLen + "+0+0")
         self.root.attributes('-topmost', True)
         self.root.maxsize(0, 0)
         self.root.resizable(0, 0)

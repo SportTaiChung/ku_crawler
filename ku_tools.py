@@ -14,7 +14,6 @@ def openWeb(base, globData):
     base.sleep(2)
 
 
-
 def closeScroll(driver):
     gameList = driver.find_elements_by_xpath("//div[@class='gameList']/ul")
     index = 0
@@ -50,3 +49,34 @@ def closeScroll(driver):
         return closeScroll(driver)
     else:
         return True
+
+
+def getGameTime(base, oldHtml):
+    # oldHtml = base.getHtml("div.gameListAll_scroll")
+    soup = base.baseSoup(oldHtml, "html.parser")
+    aGameList = soup.find_all("div", class_="gameList")
+    oGameData = {}
+    for gameList in aGameList:
+        aTr = gameList.find_all("tr", class_="GLInList")
+        st_span = None
+        rt_font = None
+        for tr in aTr:
+            rel = tr['rel']
+            st = tr.find("div", class_="GLInTBox_row st")
+            if st:
+                st_span = st.find('span').text
+            rt = tr.find("div", class_="GLInTBox_row rt")
+            if rt:
+                rt_font = rt.find('font').text
+            GLInTBox_Name = tr.find("li", class_="GLInTBox_Name")
+            aGLInTBox_nameT = GLInTBox_Name.find_all("div", class_="GLInTBox_nameT")
+            homeTeam = aGLInTBox_nameT[0].find('font').text
+            awayTeam = aGLInTBox_nameT[1].find('font').text
+            oGameData[homeTeam + "|" + awayTeam] = {
+                # 'rel': rel,
+                'date': st_span,
+                'time': rt_font,
+                'home': homeTeam,
+                'away': awayTeam,
+            }
+    return oGameData

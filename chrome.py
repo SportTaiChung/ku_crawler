@@ -90,7 +90,7 @@ def _uTest(index):
 
 
 # _open()
-# _uTest(61412)
+_uTest(56605)
 _aData = {
     'driver': driver,
     'wait': wait,
@@ -98,21 +98,18 @@ _aData = {
 base = base1.Base()
 base.setValue(_aData)
 
+# -----------------------------------
+# -----------------------------------
 
-# -----------------------------------
-# -----------------------------------
+import ku_tools
 
 
 def do():
     print(u"do")
-    _min = int(base.getTime("%M"))
-    print(_min)
-    if _min < 20:
-        print('111')
-    elif 20 < _min < 40:
-        print('222')
-    else:
-        print('333')
+    oldHtml = base.getHtml("div.gameListAll_scroll")
+    oGameData = ku_tools.getGameTime(base, oldHtml)
+    for key in oGameData:
+        print(key + " => " + base.json_encode(oGameData[key]))
 
 
 # 放要執行的東西
