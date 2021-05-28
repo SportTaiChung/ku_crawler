@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+import os
+import json
+from google.protobuf import text_format
+from upload import init_session, upload_data
+from parsing import parse
 class KuSc:
     # 建構式
     def __init__(self, _globData, _tkBox, _loopIndex, _gameIndex):
@@ -11,6 +16,9 @@ class KuSc:
         self.tkBox = _tkBox
         self.loopIndex = _loopIndex
         self.gameIndex = str(_gameIndex)
+        connection, channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
+        self.connection = connection
+        self.channel = channel
 
     def start(self):
         # noinspection PyBroadException
@@ -68,6 +76,29 @@ class KuSc:
                 self.gameTime(oldHtml)
             else:
                 self.gameOdds(oldHtml)
+            print(u'設定基本資料')
+            self.tkBox.updateLabel(self.loopIndex, u'設定基本資料 : ' + self.base.getTime("Microseconds"))
+            oldNotice = self.base.json_encode({'data': oldHtml})
+            self.base.log(self.gameName + "_" + self.gameIndex, 'setBase', oldNotice)
+
+            while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
+                print(self.gameIndex + " - " + self.base.getTime("Microseconds"))
+                self.tools.closeScroll(self.base.driver)
+                newHtml = self.base.getHtml("div.gameListAll_scroll")
+
+                if newHtml == "":
+                    self.checkNoDate()
+                    continue
+
+                if oldHtml != newHtml:
+                    oldHtml = newHtml
+                    print(self.gameName + "_" + self.gameIndex + "_" + u'資料異動')
+                    self.tkBox.updateLabel(self.loopIndex, u'資料異動 : ' + self.base.getTime("Microseconds"))
+                    newNotice = self.base.json_encode({'data': newHtml})
+                    self.base.log(self.gameName + "_" + self.gameIndex, 'change', newNotice)
+                else:
+                    self.tkBox.updateLabel(self.loopIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
+                self.base.sleep(0.1)
         except Exception as e:
             print(self.gameName + "_" + u'發生錯誤2')
             self.tkBox.updateLabel(self.loopIndex, u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
@@ -76,8 +107,14 @@ class KuSc:
 
     def gameTime(self, oldHtml):
         print(u'寫入比賽場次')
+        data = {}
+        if os.path.exists('event_time.json'):
+            with open('event_time.json', encoding='utf-8') as f:
+                data = json.load(f)
         self.tkBox.updateLabel(self.loopIndex, u'寫入比賽場次 : ' + self.base.getTime("Microseconds"))
         oGameData = self.tools.getGameTime(self.base, oldHtml)
+        if data:
+            oGameData.update(data)
         for oGameKey in oGameData:
             print(oGameKey)
             self.base.log(self.gameName + "_gameTime", '',
@@ -100,6 +137,8 @@ class KuSc:
                 self.tkBox.updateLabel(self.loopIndex, msg + self.base.getTime("Microseconds"))
             else:
                 self.tkBox.updateLabel(self.loopIndex, u'無新增場次 : ' + self.base.getTime("Microseconds"))
+            with open('event_time.json', mode='w', encoding='utf-8') as f:
+                json.dump(oGameData, f, ensure_ascii=False)
             self.base.sleep(0.1)
 
     def gameOdds(self, oldHtml):
@@ -125,6 +164,11 @@ class KuSc:
                 self.base.log(self.gameName + "_" + self.gameIndex, 'change', newNotice)
             else:
                 self.tkBox.updateLabel(self.loopIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
+            data = parse(newHtml)
+            upload_data(self.channel, data)
+            print(text_format.MessageToString(data, as_utf8=True))
+            # self.channel.close()
+            # self.connection.close()
             self.base.sleep(0.1)
 
     def checkNoDate(self):

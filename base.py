@@ -145,10 +145,10 @@ class Base:
         except Exception:
             return False
 
-    def log(self, file_name, _type, text, time=True):
+    def log(self, file_name, _type, text, add_time=True):
         # noinspection PyBroadException
         try:
-            if time:
+            if add_time:
                 path = 'logs'
                 if not os.path.isdir(path):
                     os.mkdir(path)

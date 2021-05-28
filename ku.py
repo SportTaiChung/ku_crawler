@@ -42,11 +42,11 @@ def begin():
     oBtnSC = {
         0: {'title': u"今日-全場", 'gameIndex': 1},
         1: {'title': u"滾球-全場", 'gameIndex': 1},
-        2: {'title': u"滾球-角球", 'gameIndex': 2},
-        3: {'title': u"滾球-十五分", 'gameIndex': 7},
-        4: {'title': u"滾球-波膽", 'gameIndex': 4},
-        5: {'title': u"滾球-入球數", 'gameIndex': 5},
-        6: {'title': u"滾球-半全場", 'gameIndex': 6},
+        # 2: {'title': u"滾球-角球", 'gameIndex': 2},
+        # 3: {'title': u"滾球-十五分", 'gameIndex': 7},
+        # 4: {'title': u"滾球-波膽", 'gameIndex': 4},
+        # 5: {'title': u"滾球-入球數", 'gameIndex': 5},
+        # 6: {'title': u"滾球-半全場", 'gameIndex': 6},
     }
 
     print(u"開啟流程框")
