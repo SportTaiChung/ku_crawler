@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import threading
-import ku_sc
+import ku_game
+import yaml
 import tkLabel as tk
+import base as main_base
 
-main_base = None
 globData = None
 
 
@@ -28,38 +29,37 @@ def start(_base, _globData):
 
 def begin():
     # 多線程來執行各類運動
-    # 收藏夾 btnFV
-    # 即將開賽 btnCS
-    # 轉播賽事 btnTV
-    # 冠軍聯賽 btnCH
-    # 棒球 btnBB
-    # 網球 btnTN
-    # 冰球 btnIH
-    # 排球 btnVL
-    # 手球 btnHB
-    # 電子 btnES
-    print(u"足球 btnSC")
-    oBtnSC = {
-        0: {'title': u"今日-全場", 'gameIndex': 1},
-        1: {'title': u"滾球-全場", 'gameIndex': 1},
-        # 2: {'title': u"滾球-角球", 'gameIndex': 2},
-        # 3: {'title': u"滾球-十五分", 'gameIndex': 7},
-        # 4: {'title': u"滾球-波膽", 'gameIndex': 4},
-        # 5: {'title': u"滾球-入球數", 'gameIndex': 5},
-        # 6: {'title': u"滾球-半全場", 'gameIndex': 6},
-    }
+    oSportList = {}
+    with open('sport.yaml', 'r', encoding='utf8') as f:
+        oSportList = yaml.load(f, Loader=yaml.FullLoader)
 
+    oOpenList = {}
+    tk_index = 0
+    for i_sport_type in globData['a_sport_type']:
+        for i_oSport in oSportList[i_sport_type]['list']:
+            tk_index = tk_index + 1
+            oOpenList[tk_index] = {
+                'i_sport_type': i_sport_type,
+                'i_oSport': i_oSport,
+                'title': oSportList[i_sport_type]['title'],
+                'btn': oSportList[i_sport_type]['btn'],
+                'game': oSportList[i_sport_type]['list'][i_oSport],
+            }
+    # print(oOpenList)
     print(u"開啟流程框")
-    tkLabel = tk.tkLabel(oBtnSC, globData)
+    tkLabel = tk.tkLabel(oOpenList, globData)
     thread_tk = threading.Timer(1.0, tkLabel.start, args=[])
     thread_tk.start()
-    main_base.sleep(1)
+    main_base.sleep(5)
 
-    for oBtnSCKey in oBtnSC:
-        print(oBtnSC[oBtnSCKey]['title'])
-        sc1 = ku_sc.KuSc(globData, tkLabel, oBtnSCKey, oBtnSC[oBtnSCKey]['gameIndex'])
-        thread_sc1 = threading.Timer(1.0, sc1.start, args=[])
-        thread_sc1.start()
+    print(u"開啟比賽視窗")
+    for oOpenKey in oOpenList:
+        oOpen = oOpenList[oOpenKey]
+        print(oOpen['title'])
+        page = ku_game.KuGame(globData, tkLabel, oOpenKey, oOpen['i_sport_type'], oOpen['i_oSport'], oOpen['title'],
+                              oOpen['btn'], oOpen['game'])
+        thread1 = threading.Timer(1.0, page.start, args=[])
+        thread1.start()
         main_base.sleep(20)
 
     main_base.driver.quit()

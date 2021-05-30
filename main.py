@@ -25,6 +25,7 @@ def defaultData():
         content_list = f.read().splitlines()
 
     for tContent in content_list:
+        # print(tContent)
         tContentArr = tContent.split('|')
         if tContentArr[0] == "account":
             globData['account'] = tContentArr[1]
@@ -38,14 +39,8 @@ def defaultData():
             globData['time_close'] = tContentArr[1]
         elif tContentArr[0] == "is_test":
             globData['is_test'] = tContentArr[1]
-
-    # account = input(u'login account: ')
-    # password = input(u'login password: ')
-    # page_index = input(u'page_index: ')
-
-    # python 2 要用 raw_input
-    # account = "KIEY093001"
-    # password = "Qq123456"
+        elif tContentArr[0] == "sport_type":
+            globData['sport_type'] = tContentArr[1]
 
 
 defaultData()
@@ -75,4 +70,6 @@ import ku as game
 
 globData['timestamp_start'] = int(float(main_base.getTime('Ticks')))
 globData['timestamp_end'] = globData['timestamp_start'] + int(globData['time_close'])
+globData['a_sport_type'] = globData['sport_type'].split(',')
+# print(globData)
 game.start(main_base, globData)
