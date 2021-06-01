@@ -130,6 +130,14 @@
       'gameIndex': 5
 
 
+'17':
+  'title': '羽毛球'
+  'btn': ''
+  'list':
+    0:
+      'title': ''
+      'gameIndex': 1
+
 
 '18':
   'title': '電子競技'
@@ -151,6 +159,13 @@
       'title': '滾球-總數'
       'gameIndex': 3
 
+'19':
+  'title': '美足'
+  'btn': ''
+  'list':
+    0:
+      'title': ''
+      'gameIndex': 1
 
 
 '20':
@@ -185,7 +200,7 @@
 
 
 
-'btnHB':
+'22':
   'title': '手球'
   'btn': 'btnHB'
   'list':
@@ -193,5 +208,11 @@
       'title': '今日-全場'
       'gameIndex': 1
 
-
+'23':
+  'title': '水球'
+  'btn': ''
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
 
