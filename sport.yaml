@@ -67,6 +67,8 @@
       'title': '滾球-單隊總得分'
       'gameIndex': 10
 
+
+
 '14':
   'title': '網球'
   'btn': 'btnTN'
@@ -87,6 +89,8 @@
       'title': '滾球-選手總局數'
       'gameIndex': 5
 
+
+
 '15':
   'title': '冰球'
   'btn': 'btnIH'
@@ -102,6 +106,8 @@
     2:
       'title': '滾球-單隊總得分'
       'gameIndex': 3
+
+
 
 '16':
   'title': '排球'
@@ -123,13 +129,7 @@
       'title': '滾球-單隊總得分'
       'gameIndex': 5
 
-'17':
-  'title': '羽毛球'
-  'btn': ''
-  'list':
-    0:
-      'title': ''
-      'gameIndex': 1
+
 
 '18':
   'title': '電子競技'
@@ -151,21 +151,17 @@
       'title': '滾球-總數'
       'gameIndex': 3
 
-'19':
-  'title': '美足'
-  'btn': ''
-  'list':
-    0:
-      'title': ''
-      'gameIndex': 1
+
 
 '20':
   'title': '撞球'
-  'btn': ''
+  'btn': 'btnPB'
   'list':
     0:
-      'title': ''
+      'title': '今日-局數'
       'gameIndex': 1
+
+
 
 '21':
   'title': '乒乓球'
@@ -187,7 +183,9 @@
       'title': '滾球-單隊總得分'
       'gameIndex': 5
 
-'22':
+
+
+'btnHB':
   'title': '手球'
   'btn': 'btnHB'
   'list':
@@ -195,12 +193,5 @@
       'title': '今日-全場'
       'gameIndex': 1
 
-'23':
-  'title': '水球'
-  'btn': ''
-  'list':
-    0:
-      'title': '今日-全場'
-      'gameIndex': 1
 
 
