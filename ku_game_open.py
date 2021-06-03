@@ -28,8 +28,13 @@ class kuGameOpen:
             # noinspection PyBroadException
             try:
                 print(self.title + "_start")
-                self.base.defaultDriverBase()
-                self.tools.openWeb(self.base, self.globData)
+                if self.base.driver == None:
+                    self.base.defaultDriverBase()
+                    self.tools.openWeb(self.base, self.globData)
+                    print(u"導至遊戲")
+                    self.tkBox.updateLabel(self.tkIndex, u'導至遊戲 : ' + self.base.getTime("Microseconds"))
+                    self.base.driver.get(self.globData['ku_url_end'])
+                    self.base.sleep(3)
                 self.odd()
             except Exception as e:
                 print(self.title + "_" + u'發生錯誤1')
@@ -38,17 +43,20 @@ class kuGameOpen:
                 self.base.log('error1', '-----', newNotice, 'logs')
                 self.base.sleep(0.1)
             self.base.sleep(5)
-            self.base.driver.quit()
+            self.base.driver.implicitly_wait(1)
+            try:
+                self.base.driver.find_element_by_xpath('//div[@id="modeDS"]')
+                self.base.sleep(0.1)
+                self.base.driver.find_element_by_xpath('//div[@id="modeZD"]')
+                self.base.sleep(0.1)
+                self.base.driver.implicitly_wait(30)
+            except Exception:
+                self.base.driver.quit()
             self.base.sleep(5)
         self.tkBox.updateLabel(self.tkIndex, u'腳本已終止 ' + self.base.getTime("Microseconds"))
 
     def odd(self):
         try:
-            print(u"導至遊戲")
-            self.tkBox.updateLabel(self.tkIndex, u'導至遊戲 : ' + self.base.getTime("Microseconds"))
-            self.base.driver.get(self.globData['ku_url_end'])
-            self.base.sleep(3)
-
             print(u"初始化註冊檔")
             self.tkBox.updateLabel(self.tkIndex, u'初始化註冊檔 : ' + self.base.getTime("Microseconds"))
             self.base.resetWinregKeyValue()
@@ -85,7 +93,7 @@ class kuGameOpen:
                         # print('開啟')
                         # print(oNewGameOpenOne)
                         self.base.setWinregKey(oNewGameOpenOne, '1')
-                        self.base.log('檢查賽事開關', '', oOldGameOpenOne + u" - 開啟", 'switch')
+                        self.base.log('檢查賽事開關', '', oNewGameOpenOne + u" - 開啟", 'switch')
                 oOldGameOpenList = oNewGameOpenList
 
                 self.tkBox.updateLabel(self.tkIndex, u"此次開啟" + str(index_open) + u"關閉" + str(index_close)+

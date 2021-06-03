@@ -41,27 +41,35 @@ class KuGame:
             # noinspection PyBroadException
             try:
                 print(self.title + "_" + str(self.i_oSport) + "_start")
-                self.base.defaultDriverBase()
-                self.tools.openWeb(self.base, self.globData)
+                if self.base.driver == None:
+                    self.base.defaultDriverBase()
+                    self.tools.openWeb(self.base, self.globData)
+                    print(u"導至遊戲")
+                    self.tkBox.updateLabel(self.tkIndex, u'導至遊戲 : ' + self.base.getTime("Microseconds"))
+                    self.base.driver.get(self.globData['ku_url_end'])
+                    self.base.sleep(3)
                 self.odd()
             except Exception as e:
                 print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤1')
                 self.tkBox.updateLabel(self.tkIndex, u'發生錯誤1 : ' + self.base.getTime("Microseconds"))
                 newNotice = self.base.json_encode({'data': e})
-                self.base.log('error1', '-----', newNotice,'logs')
+                self.base.log('error1', '-----', newNotice, 'logs')
                 self.base.sleep(0.1)
             self.base.sleep(5)
-            self.base.driver.quit()
+            self.base.driver.implicitly_wait(1)
+            try:
+                self.base.driver.find_element_by_xpath('//div[@id="modeDS"]')
+                self.base.sleep(0.1)
+                self.base.driver.find_element_by_xpath('//div[@id="modeZD"]')
+                self.base.sleep(0.1)
+                self.base.driver.implicitly_wait(30)
+            except Exception:
+                self.base.driver.quit()
             self.base.sleep(5)
         self.tkBox.updateLabel(self.tkIndex, u'腳本已終止 ' + self.base.getTime("Microseconds"))
 
     def odd(self):
         try:
-            print(u"導至遊戲")
-            self.tkBox.updateLabel(self.tkIndex, u'導至遊戲 : ' + self.base.getTime("Microseconds"))
-            self.base.driver.get(self.globData['ku_url_end'])
-            self.base.sleep(3)
-
             if u'今日' in self.gameTitle:
                 print(u"今日")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
@@ -82,7 +90,8 @@ class KuGame:
             self.base.sleep(1)
 
             print(u"檢查有無資料")
-            self.checkNoDate()
+            if not self.checkNoDate():
+                return True
 
             print(u"抓取")
             oldHtml = self.base.getHtml("div.gameListAll_scroll")
@@ -95,7 +104,7 @@ class KuGame:
             print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤2')
             self.tkBox.updateLabel(self.tkIndex, u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
             newNotice = self.base.json_encode({'data': e})
-            self.base.log('error2', '-----', newNotice,'logs')
+            self.base.log('error2', '-----', newNotice, 'logs')
         return True
 
     def gameTime(self, oldHtml):
@@ -146,7 +155,7 @@ class KuGame:
         print(u'設定基本資料')
         self.tkBox.updateLabel(self.tkIndex, u'設定基本資料 : ' + self.base.getTime("Microseconds"))
         oldNotice = self.base.json_encode({'data': oldHtml})
-        self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice,'logs')
+        self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice, 'logs')
 
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
@@ -158,7 +167,9 @@ class KuGame:
             newHtml = self.base.getHtml("div.gameListAll_scroll")
 
             if newHtml == "":
-                self.checkNoDate()
+                print(u"檢查有無資料")
+                if not self.checkNoDate():
+                    return True
                 continue
 
             if oldHtml != newHtml:
@@ -166,7 +177,7 @@ class KuGame:
                 print(self.title + "_" + self.gameIndex + "_" + u'資料異動')
                 self.tkBox.updateLabel(self.tkIndex, u'資料異動 : ' + self.base.getTime("Microseconds"))
                 newNotice = self.base.json_encode({'data': newHtml})
-                self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice,'logs')
+                self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
             else:
                 self.tkBox.updateLabel(self.tkIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
 
@@ -184,10 +195,15 @@ class KuGame:
         while True:
             # noinspection PyBroadException
             try:
+
+                if not self.checkBtnExist():
+                    return False
+
                 self.base.driver.find_element_by_xpath('//div[@class="gameList"]')
                 self.base.sleep(0.1)
                 self.base.driver.implicitly_wait(30)
-                break
+
+                return True
             except Exception:
                 self.tkBox.updateLabel(self.tkIndex, u'無資料、等待一秒後重試 : ' + self.base.getTime("Microseconds"))
                 print(self.gameIndex + " - " + self.base.getTime("Microseconds") + u" - 無資料、等待一秒後重試")
@@ -197,11 +213,13 @@ class KuGame:
         print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
         # 全場btnSC足球Menu.ChangeKGroup(this, '11', 1)
         isExist = True
-        isOpen = self.base.getWinregKey(self.gameType+self.btn+self.title+"Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ")")
-        while(isOpen!="1"):
+        key = self.gameType + self.btn + self.title + "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ")"
+        isOpen = self.base.getWinregKey(key)
+        while (isOpen != "1"):
             self.tkBox.updateLabel(self.tkIndex, u'無列表選項、等待十秒後重試 : ' + self.base.getTime("Microseconds"))
             print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 無列表選項、等待十秒後重試")
             self.base.sleep(10)
+            isOpen = self.base.getWinregKey(key)
             isExist = False
         return isExist
         # self.base.driver.implicitly_wait(1)
