@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import traceback
 import json
 from google.protobuf import text_format
 from upload import init_session, upload_data
@@ -101,6 +102,7 @@ class KuSc:
                 self.base.sleep(0.1)
         except Exception as e:
             print(self.gameName + "_" + u'發生錯誤2')
+            traceback.print_exc()
             self.tkBox.updateLabel(self.loopIndex, u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
             newNotice = self.base.json_encode({'data': e})
             self.base.log('error2', '-----', newNotice)
@@ -165,7 +167,9 @@ class KuSc:
             else:
                 self.tkBox.updateLabel(self.loopIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
             data = parse(newHtml)
-            upload_data(self.channel, data)
+            status = upload_data(self.channel, data)
+            if status is None:
+                self.connection, self.channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
             print(text_format.MessageToString(data, as_utf8=True))
             # self.channel.close()
             # self.connection.close()
