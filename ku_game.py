@@ -42,9 +42,9 @@ class KuGame:
             try:
                 print(self.title + "_" + str(self.i_oSport) + "_start")
                 if self.base.driver == None:
+                    self.tkBox.updateLabel(self.tkIndex, u'開啟視窗 ' + self.base.getTime("Microseconds"))
                     self.base.defaultDriverBase()
                     self.tools.openWeb(self.base, self.globData)
-                    print(u"導至遊戲")
                     self.tkBox.updateLabel(self.tkIndex, u'導至遊戲 : ' + self.base.getTime("Microseconds"))
                     self.base.driver.get(self.globData['ku_url_end'])
                     self.base.sleep(3)
@@ -52,31 +52,38 @@ class KuGame:
             except Exception as e:
                 print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤1')
                 self.tkBox.updateLabel(self.tkIndex, u'發生錯誤1 : ' + self.base.getTime("Microseconds"))
-                newNotice = self.base.json_encode({'data': e})
-                self.base.log('error1', '-----', newNotice, 'logs')
+                # newNotice = self.base.json_encode({'data': e})
+                # self.base.log('error1', '-----', newNotice, 'logs')
                 self.base.sleep(0.1)
             self.base.sleep(5)
             self.base.driver.implicitly_wait(1)
             try:
-                self.base.driver.find_element_by_xpath('//div[@id="modeDS"]')
+                self.base.driver.find_element_by_xpath('//li[@id="modeDS"]')
                 self.base.sleep(0.1)
-                self.base.driver.find_element_by_xpath('//div[@id="modeZD"]')
+                self.base.driver.find_element_by_xpath('//li[@id="modeZD"]')
                 self.base.sleep(0.1)
                 self.base.driver.implicitly_wait(30)
             except Exception:
-                self.base.driver.quit()
+                self.tkBox.updateLabel(self.tkIndex, u'關閉視窗 ' + self.base.getTime("Microseconds"))
+                try:
+                    import base as base
+                    self.base.driver.quit()
+                    self.base = base.Base()
+                except Exception:
+                    self.base.sleep(0.1)
             self.base.sleep(5)
         self.tkBox.updateLabel(self.tkIndex, u'腳本已終止 ' + self.base.getTime("Microseconds"))
 
     def odd(self):
         try:
+            self.tkBox.updateLabel(self.tkIndex, u'選擇mode' + self.base.getTime("Microseconds"))
             if u'今日' in self.gameTitle:
                 print(u"今日")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
             else:
                 print(u"滾球")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
-
+            self.tkBox.updateLabel(self.tkIndex, u'導入' + self.base.getTime("Microseconds"))
             ele_btnPagemode.click()
             self.base.sleep(1)
 
@@ -85,15 +92,18 @@ class KuGame:
                 return True
 
             print(u"類型")
+            self.tkBox.updateLabel(self.tkIndex, u'類型' + self.base.getTime("Microseconds"))
             self.base.driver.execute_script(
                 "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
             self.base.sleep(1)
 
             print(u"檢查有無資料")
+            self.tkBox.updateLabel(self.tkIndex, u'檢查有無資料' + self.base.getTime("Microseconds"))
             if not self.checkNoDate():
                 return True
 
             print(u"抓取")
+            self.tkBox.updateLabel(self.tkIndex, u'抓取' + self.base.getTime("Microseconds"))
             oldHtml = self.base.getHtml("div.gameListAll_scroll")
 
             if self.i_oSport == 0:
@@ -102,9 +112,10 @@ class KuGame:
                 self.gameOdds(oldHtml)
         except Exception as e:
             print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤2')
+            print(e)
             self.tkBox.updateLabel(self.tkIndex, u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
-            newNotice = self.base.json_encode({'data': e})
-            self.base.log('error2', '-----', newNotice, 'logs')
+            # newNotice = self.base.json_encode({'data': e})
+            # self.base.log('error2', '-----', newNotice, 'logs')
         return True
 
     def gameTime(self, oldHtml):
@@ -210,7 +221,7 @@ class KuGame:
                 self.base.sleep(1)
 
     def checkBtnExist(self):
-        print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
+        # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
         # 全場btnSC足球Menu.ChangeKGroup(this, '11', 1)
         isExist = True
         key = self.gameType + self.btn + self.title + "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ")"
@@ -221,6 +232,8 @@ class KuGame:
             self.base.sleep(10)
             isOpen = self.base.getWinregKey(key)
             isExist = False
+        if not isExist:
+            self.tkBox.updateLabel(self.tkIndex, u'列表開啟、重新導入 : ' + self.base.getTime("Microseconds"))
         return isExist
         # self.base.driver.implicitly_wait(1)
         # isExist = True

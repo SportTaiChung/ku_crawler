@@ -39,7 +39,7 @@ import time, os, warnings
 import threading
 # 初始化檔案
 import base as base1
-import tkListBox
+
 
 # 警告修正
 warnings.simplefilter('ignore', InsecureRequestWarning)

@@ -39,19 +39,23 @@ class kuGameOpen:
             except Exception as e:
                 print(self.title + "_" + u'發生錯誤1')
                 self.tkBox.updateLabel(self.tkIndex, u'發生錯誤1 : ' + self.base.getTime("Microseconds"))
-                newNotice = self.base.json_encode({'data': e})
-                self.base.log('error1', '-----', newNotice, 'logs')
+                # newNotice = self.base.json_encode({'data': e})
+                # self.base.log('error1', '-----', newNotice, 'logs')
                 self.base.sleep(0.1)
             self.base.sleep(5)
             self.base.driver.implicitly_wait(1)
             try:
-                self.base.driver.find_element_by_xpath('//div[@id="modeDS"]')
+                self.base.driver.find_element_by_xpath('//li[@id="modeDS"]')
                 self.base.sleep(0.1)
-                self.base.driver.find_element_by_xpath('//div[@id="modeZD"]')
+                self.base.driver.find_element_by_xpath('//li[@id="modeZD"]')
                 self.base.sleep(0.1)
                 self.base.driver.implicitly_wait(30)
             except Exception:
-                self.base.driver.quit()
+                self.tkBox.updateLabel(self.tkIndex, u'關閉視窗 ' + self.base.getTime("Microseconds"))
+                try:
+                    self.base.driver.quit()
+                except Exception:
+                    self.base.sleep(0.1)
             self.base.sleep(5)
         self.tkBox.updateLabel(self.tkIndex, u'腳本已終止 ' + self.base.getTime("Microseconds"))
 
