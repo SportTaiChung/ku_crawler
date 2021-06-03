@@ -1,0 +1,225 @@
+'11':
+  'title': '足球'
+  'btn': 'btnSC'
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
+    1:
+      'title': '今日-全場'
+      'gameIndex': 1
+    2:
+      'title': '今日-角球'
+      'gameIndex': 2
+    3:
+      'title': '今日-十五分'
+      'gameIndex': 3
+    4:
+      'title': '今日-波膽'
+      'gameIndex': 4
+    5:
+      'title': '今日-入球數'
+      'gameIndex': 5
+    6:
+      'title': '今日-半全場'
+      'gameIndex': 6
+
+'12':
+  'title': '籃球'
+  'btn': 'btnBK'
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
+    1:
+      'title': '今日-全場'
+      'gameIndex': 1
+    2:
+      'title': '今日-單節'
+      'gameIndex': 2
+    3:
+      'title': '今日-三分球'
+      'gameIndex': 3
+    4:
+      'title': '今日-單隊總得分'
+      'gameIndex': 4 
+    
+
+'13':
+  'title': '棒球'
+  'btn': 'btnBB'
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
+    1:
+      'title': '今日-全場'
+      'gameIndex': 1
+    2:
+      'title': '今日-1~3局'
+      'gameIndex': 2
+    3:
+      'title': '今日-1~7局'
+      'gameIndex': 3
+    4:
+      'title': '今日-單局'
+      'gameIndex': 4
+    5:
+      'title': '今日-單隊總得分'
+      'gameIndex': 5
+
+
+
+'14':
+  'title': '網球'
+  'btn': 'btnTN'
+  'list':
+    0:
+      'title': '今日-局數盤數'
+      'gameIndex': 1
+    
+    1:
+      'title': '今日-局數盤數'
+      'gameIndex': 1
+
+    2:
+      'title': '今日-局數盤數'
+      'gameIndex': 2
+
+
+
+'15':
+  'title': '冰球'
+  'btn': 'btnIH'
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
+      
+    1:
+      'title': '今日-全場'
+      'gameIndex': 1
+
+    2:
+      'title': '今日-單隊'
+      'gameIndex': 2
+
+    3:
+      'title': '今日-單隊總得分'
+      'gameIndex': 3
+
+
+
+'16':
+  'title': '排球'
+  'btn': 'btnVL'
+  'list':
+    0:
+      'title': '今日-局數總分'
+      'gameIndex': 1
+    
+    1:
+      'title': '今日-局數總分'
+      'gameIndex': 1
+
+    2:
+      'title': '今日-第1局'
+      'gameIndex': 2
+
+
+'17':
+  'title': '羽毛球'
+  'btn': ''
+  'list':
+    0:
+      'title': '今日'
+      'gameIndex': 1
+
+
+'18':
+  'title': '電子競技'
+  'btn': 'btnES'
+  'list':
+    0:
+      'title': '今日-局數'
+      'gameIndex': 1
+      
+    1:
+      'title': '今日-局數'
+      'gameIndex': 1
+
+    2:
+      'title': '今日-單局'
+      'gameIndex': 2
+
+    3:
+      'title': '今日-總數'
+      'gameIndex': 3
+
+'19':
+  'title': '美足'
+  'btn': ''
+  'list':
+    0:
+      'title': '今日'
+      'gameIndex': 1
+
+
+'20':
+  'title': '撞球'
+  'btn': 'btnPB'
+  'list':
+    0:
+      'title': '今日-局數'
+      'gameIndex': 1
+      
+    1:
+      'title': '今日-局數'
+      'gameIndex': 1
+      
+    2:
+      'title': '今日-第1局'
+      'gameIndex': 1
+
+
+
+'21':
+  'title': '乒乓球'
+  'btn': 'btnTT'
+  'list':
+    0:
+      'title': '今日-局數總分'
+      'gameIndex': 1
+
+    1:
+      'title': '今日-局數總分'
+      'gameIndex': 1
+      
+    2:
+      'title': '今日-第1局'
+      'gameIndex': 2
+
+
+'22':
+  'title': '手球'
+  'btn': 'btnHB'
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
+    1:
+      'title': '今日-全場'
+      'gameIndex': 1
+      
+
+'23':
+  'title': '水球'
+  'btn': ''
+  'list':
+    0:
+      'title': '今日-全場'
+      'gameIndex': 1
+    1:
+      'title': '今日-全場'
+      'gameIndex': 1
+

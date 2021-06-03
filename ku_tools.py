@@ -80,3 +80,63 @@ def getGameTime(base, oldHtml):
                 'away': awayTeam,
             }
     return oGameData
+
+
+def getGameOpen(base):
+    oGameOpen = {}
+    print(u"全場")
+    # noinspection PyBroadException
+    try:
+        ele_btnPagemode = base.waitBy("CSS", "#modeDS")
+        ele_btnPagemode.click()
+        base.sleep(1)
+        sportListHtml = base.getHtml("div#sportList")
+        soup = base.baseSoup(sportListHtml, "html.parser")
+        aGameList = soup.find_all("div", class_="SM_list")
+        for gameList in aGameList:
+            if gameList['id'] in ['btnFV', 'btnCS', 'btnTV']:
+                continue
+            gameId = gameList['id']
+            liList = gameList.find_all("li")
+            index = 0
+            title = ""
+            for li in liList:
+                if index == 0:
+                    title = li.text
+                else:
+                    subKey = "今日" + gameId + title + li['onclick']
+                    print(subKey)
+                    oGameOpen[subKey] = '1'
+                index = index + 1
+
+    except Exception:
+        base.sleep(1)
+
+    # noinspection PyBroadException
+    try:
+        print(u"滾球")
+        ele_btnPagemode = base.waitBy("CSS", "#modeZD")
+        ele_btnPagemode.click()
+        base.sleep(1)
+        sportListHtml = base.getHtml("div#sportList")
+        soup = base.baseSoup(sportListHtml, "html.parser")
+        aGameList = soup.find_all("div", class_="SM_list")
+        for gameList in aGameList:
+            if gameList['id'] in ['btnFV', 'btnCS', 'btnTV']:
+                continue
+            gameId = gameList['id']
+            liList = gameList.find_all("li")
+            index = 0
+            title = ""
+            for li in liList:
+                if index == 0:
+                    title = li.text
+                else:
+                    subKey = "滾球" + gameId + title + li['onclick']
+                    print(subKey)
+                    oGameOpen[subKey] = '1'
+                index = index + 1
+    except Exception:
+        base.sleep(1)
+
+    return oGameOpen

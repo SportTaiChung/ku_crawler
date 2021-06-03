@@ -2,6 +2,7 @@
 import time
 import json
 import os
+import winreg
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -19,6 +20,7 @@ class Base:
         self.driver = None
         self.wait = None
         self.page_load_timeout = "30"
+        self.keyWinreg = r'Software\Being\LEO'
 
     # 設定公用變數
     def setValue(self, _aData):
@@ -145,10 +147,11 @@ class Base:
         except Exception:
             return False
 
-    def log(self, file_name, _type, text, add_time=True):
+    def log(self, file_name, _type, text, log_type):
+
         # noinspection PyBroadException
         try:
-            if add_time:
+            if log_type == 'logs':
                 path = 'logs'
                 if not os.path.isdir(path):
                     os.mkdir(path)
@@ -162,12 +165,19 @@ class Base:
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d_%H") + _log_min + '.txt'
                 f = open(txt_url, "a+")
                 f.write(self.getTime("Microseconds") + '\n')
-            else:
+            elif log_type == 'mapping':
                 path = 'mapping'
                 if not os.path.isdir(path):
                     os.mkdir(path)
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
                 f = open(txt_url, "a+")
+            elif log_type == 'switch':
+                path = 'logs'
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+                txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
+                f = open(txt_url, "a+")
+                f.write(self.getTime("Microseconds") + '\n')
 
             if _type != '':
                 f.write(_type + '\n')
@@ -182,5 +192,39 @@ class Base:
         return BeautifulSoup(_html, _type)
 
     def getHtml(self, _css):
-        ele_scroll = self.waitBy("CSS", "div.gameListAll_scroll")
+        ele_scroll = self.waitBy("CSS", _css)
         return ele_scroll.get_attribute('innerHTML')
+
+    def setWinregKey(self, subKey, value):
+        # noinspection PyBroadException
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
+        except Exception:
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, self.keyWinreg)
+        winreg.SetValueEx(key, subKey, 0, winreg.REG_SZ, value)
+        winreg.CloseKey(key)
+
+    def getWinregKey(self, subKey):
+        # noinspection PyBroadException
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
+            value, _type = winreg.QueryValueEx(key, subKey)
+        except Exception:
+            winreg.CreateKey(winreg.HKEY_CURRENT_USER, self.keyWinreg)
+            value = ""
+        return str(value)
+
+    def resetWinregKeyValue(self):
+        # noinspection PyBroadException
+        try:
+            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
+            for key in range(3000):
+                print(key)
+                try:
+                    show_sub_keys = winreg.EnumValue(reg_key, key)
+                    winreg.SetValueEx(reg_key, show_sub_keys[0], 0, winreg.REG_SZ, '0')
+                except Exception:
+                    break
+        except Exception:
+            return False
+        return True

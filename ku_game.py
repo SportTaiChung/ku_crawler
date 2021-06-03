@@ -24,6 +24,8 @@ class KuGame:
         self.title = _title  # 足球 , 籃球 ...
         self.btn = _btn  # 足球 btnSC , 籃球 btnBK ...
         self.game = _game  # {'title': u"今日-全場", 'gameIndex': 1}
+        self.gameTitle = str(_game['title'])
+        self.gameType = self.gameTitle.split("-")[0]
         self.gameIndex = str(_game['gameIndex'])
 
         [connection, channel] = ["", ""]
@@ -35,25 +37,23 @@ class KuGame:
 
     # globData['is_test']
     def start(self):
-        # noinspection PyBroadException
-        try:
-            print(self.title + "_" + str(self.i_oSport) + "_start")
-            self.base.defaultDriverBase()
-            self.tools.openWeb(self.base, self.globData)
-            self.odd()
-        except Exception as e:
-            print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤1')
-            self.tkBox.updateLabel(self.tkIndex, u'發生錯誤1 : ' + self.base.getTime("Microseconds"))
-            newNotice = self.base.json_encode({'data': e})
-            self.base.log('error1', '-----', newNotice)
-            self.base.sleep(0.1)
-        self.base.sleep(5)
-        self.base.driver.quit()
-        self.base.sleep(5)
-        if int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-            self.start()
-        else:
-            self.tkBox.updateLabel(self.tkIndex, u'腳本已終止 ' + self.base.getTime("Microseconds"))
+        while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
+            # noinspection PyBroadException
+            try:
+                print(self.title + "_" + str(self.i_oSport) + "_start")
+                self.base.defaultDriverBase()
+                self.tools.openWeb(self.base, self.globData)
+                self.odd()
+            except Exception as e:
+                print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤1')
+                self.tkBox.updateLabel(self.tkIndex, u'發生錯誤1 : ' + self.base.getTime("Microseconds"))
+                newNotice = self.base.json_encode({'data': e})
+                self.base.log('error1', '-----', newNotice,'logs')
+                self.base.sleep(0.1)
+            self.base.sleep(5)
+            self.base.driver.quit()
+            self.base.sleep(5)
+        self.tkBox.updateLabel(self.tkIndex, u'腳本已終止 ' + self.base.getTime("Microseconds"))
 
     def odd(self):
         try:
@@ -62,8 +62,8 @@ class KuGame:
             self.base.driver.get(self.globData['ku_url_end'])
             self.base.sleep(3)
 
-            if self.i_oSport == 0:
-                print(u"全場")
+            if u'今日' in self.gameTitle:
+                print(u"今日")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
             else:
                 print(u"滾球")
@@ -73,20 +73,8 @@ class KuGame:
             self.base.sleep(1)
 
             print(self.title)
-            self.base.driver.implicitly_wait(1)
-            while True:
-                # noinspection PyBroadException
-                try:
-                    self.base.driver.find_element_by_xpath('//div[@id="' + self.btn + '"]')
-                    self.base.driver.implicitly_wait(30)
-                    ele_btnPage = self.base.waitBy("CSS", "#" + self.btn)
-                    ele_btnPage.click()
-                    self.base.sleep(1)
-                    break
-                except Exception:
-                    self.tkBox.updateLabel(self.tkIndex, u'無列表選項、等待十秒後重試 : ' + self.base.getTime("Microseconds"))
-                    print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 無列表選項、等待十秒後重試")
-                    self.base.sleep(10)
+            if not self.checkBtnExist():
+                return True
 
             print(u"類型")
             self.base.driver.execute_script(
@@ -107,7 +95,8 @@ class KuGame:
             print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤2')
             self.tkBox.updateLabel(self.tkIndex, u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
             newNotice = self.base.json_encode({'data': e})
-            self.base.log('error2', '-----', newNotice)
+            self.base.log('error2', '-----', newNotice,'logs')
+        return True
 
     def gameTime(self, oldHtml):
         print(u'寫入比賽場次')
@@ -116,7 +105,7 @@ class KuGame:
             if os.path.exists('event_time.json'):
                 with open('event_time.json', encoding='utf-8') as f:
                     data = json.load(f)
-            self.tkBox.updateLabel(self.loopIndex, u'寫入比賽場次 : ' + self.base.getTime("Microseconds"))
+            self.tkBox.updateLabel(self.tkIndex, u'寫入比賽場次 : ' + self.base.getTime("Microseconds"))
         oGameData = self.tools.getGameTime(self.base, oldHtml)
 
         if self.globData['is_test'] != "TRUE" and data:
@@ -124,10 +113,14 @@ class KuGame:
         for oGameKey in oGameData:
             print(oGameKey)
             self.base.log(self.title + "_gameTime", '',
-                          oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), False)
+                          oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), 'mapping')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
             self.tools.closeScroll(self.base.driver)
+
+            if not self.checkBtnExist():
+                return True
+
             newHtml = self.base.getHtml("div.gameListAll_scroll")
             oNewGameData = self.tools.getGameTime(self.base, newHtml)
             iChange = 0
@@ -137,7 +130,7 @@ class KuGame:
                     iChange = iChange + 1
                     oGameData[oGameKey] = oNewGameData[oGameKey]
                     self.base.log(self.title + "_gameTime", '',
-                                  oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), False)
+                                  oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), 'mapping')
             if iChange > 0:
                 msg = u'新增場次(' + str(iChange) + ') : '
                 self.tkBox.updateLabel(self.tkIndex, msg + self.base.getTime("Microseconds"))
@@ -153,11 +146,15 @@ class KuGame:
         print(u'設定基本資料')
         self.tkBox.updateLabel(self.tkIndex, u'設定基本資料 : ' + self.base.getTime("Microseconds"))
         oldNotice = self.base.json_encode({'data': oldHtml})
-        self.base.log(self.title + "_" + self.gameIndex, 'setBase', oldNotice)
+        self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice,'logs')
 
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
             self.tools.closeScroll(self.base.driver)
+
+            if not self.checkBtnExist():
+                return True
+
             newHtml = self.base.getHtml("div.gameListAll_scroll")
 
             if newHtml == "":
@@ -169,7 +166,7 @@ class KuGame:
                 print(self.title + "_" + self.gameIndex + "_" + u'資料異動')
                 self.tkBox.updateLabel(self.tkIndex, u'資料異動 : ' + self.base.getTime("Microseconds"))
                 newNotice = self.base.json_encode({'data': newHtml})
-                self.base.log(self.title + "_" + self.gameIndex, 'change', newNotice)
+                self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice,'logs')
             else:
                 self.tkBox.updateLabel(self.tkIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
 
@@ -195,3 +192,37 @@ class KuGame:
                 self.tkBox.updateLabel(self.tkIndex, u'無資料、等待一秒後重試 : ' + self.base.getTime("Microseconds"))
                 print(self.gameIndex + " - " + self.base.getTime("Microseconds") + u" - 無資料、等待一秒後重試")
                 self.base.sleep(1)
+
+    def checkBtnExist(self):
+        print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
+        # 全場btnSC足球Menu.ChangeKGroup(this, '11', 1)
+        isExist = True
+        isOpen = self.base.getWinregKey(self.gameType+self.btn+self.title+"Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ")")
+        while(isOpen!="1"):
+            self.tkBox.updateLabel(self.tkIndex, u'無列表選項、等待十秒後重試 : ' + self.base.getTime("Microseconds"))
+            print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 無列表選項、等待十秒後重試")
+            self.base.sleep(10)
+            isExist = False
+        return isExist
+        # self.base.driver.implicitly_wait(1)
+        # isExist = True
+        # index = 0
+        # max_index = 19  # 每三分鐘、就回去重新導入網頁
+        # if type == 2:  # 2 只執行一次、就回去重新導入網頁
+        #     index = max_index - 1
+        # while index < max_index:
+        #     index = index + 1
+        #     # noinspection PyBroadException
+        #     try:
+        #         self.base.driver.find_element_by_xpath('//div[@id="' + self.btn + '"]')
+        #         self.base.driver.implicitly_wait(30)
+        #         ele_btnPage = self.base.waitBy("CSS", "#" + self.btn)
+        #         ele_btnPage.click()
+        #         self.base.sleep(1)
+        #         break
+        #     except Exception:
+        #         self.tkBox.updateLabel(self.tkIndex, u'無列表選項、等待十秒後重試 : ' + self.base.getTime("Microseconds"))
+        #         print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 無列表選項、等待十秒後重試")
+        #         self.base.sleep(10)
+        #         isExist = False
+        # return isExist

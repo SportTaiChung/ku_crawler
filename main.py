@@ -14,6 +14,7 @@ globData = {
     'page_index': '',
     'time_close': 8 * 60 * 60,  # 秒(8H)
     'is_test': 'False',
+    'yaml_name': "sport_run",
 }
 
 
@@ -41,6 +42,8 @@ def defaultData():
             globData['is_test'] = tContentArr[1]
         elif tContentArr[0] == "sport_type":
             globData['sport_type'] = tContentArr[1]
+        elif tContentArr[0] == "yaml_name":
+            globData['yaml_name'] = tContentArr[1]
 
 
 defaultData()
