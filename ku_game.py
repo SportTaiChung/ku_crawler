@@ -80,6 +80,9 @@ class KuGame:
             if u'今日' in self.gameTitle:
                 print(u"今日")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
+            elif u'早盤' in self.gameTitle:
+                print(u"早盤")
+                ele_btnPagemode = self.base.waitBy("CSS", "#modeZP")
             else:
                 print(u"滾球")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
@@ -106,7 +109,7 @@ class KuGame:
             self.tkBox.updateLabel(self.tkIndex, u'抓取' + self.base.getTime("Microseconds"))
             oldHtml = self.base.getHtml("div.gameListAll_scroll")
 
-            if self.i_oSport == 0:
+            if self.i_oSport == 0 or self.i_oSport == 99:
                 self.gameTime(oldHtml)
             else:
                 self.gameOdds(oldHtml)

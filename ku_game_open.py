@@ -49,6 +49,8 @@ class kuGameOpen:
                 self.base.sleep(0.1)
                 self.base.driver.find_element_by_xpath('//li[@id="modeZD"]')
                 self.base.sleep(0.1)
+                self.base.driver.find_element_by_xpath('//li[@id="modeZP"]')
+                self.base.sleep(0.1)
                 self.base.driver.implicitly_wait(30)
             except Exception:
                 self.tkBox.updateLabel(self.tkIndex, u'關閉視窗 ' + self.base.getTime("Microseconds"))
