@@ -86,6 +86,7 @@ class KuGame:
             else:
                 print(u"滾球")
                 ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
+
             self.tkBox.updateLabel(self.tkIndex, u'導入' + self.base.getTime("Microseconds"))
             ele_btnPagemode.click()
             self.base.sleep(1)
@@ -222,6 +223,18 @@ class KuGame:
                 self.tkBox.updateLabel(self.tkIndex, u'無資料、等待一秒後重試 : ' + self.base.getTime("Microseconds"))
                 print(self.gameIndex + " - " + self.base.getTime("Microseconds") + u" - 無資料、等待一秒後重試")
                 self.base.sleep(1)
+                try:
+                    self.tkBox.updateLabel(self.tkIndex, u'點選我的最愛 : ' + self.base.getTime("Microseconds"))
+                    self.base.driver.find_element_by_xpath('//div[@id="btnFV"]').click()
+                    self.base.sleep(5)
+                    self.tkBox.updateLabel(self.tkIndex, u'點回遊戲 : ' + self.base.getTime("Microseconds"))
+                    self.base.driver.find_element_by_xpath('//div[@id="' + self.btn + '"]').click()
+                    self.base.sleep(5)
+                    self.base.driver.execute_script(
+                        "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
+                    self.base.sleep(1)
+                except Exception:
+                    self.base.sleep(2)
 
     def checkBtnExist(self):
         # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
