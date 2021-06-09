@@ -152,6 +152,7 @@ class Base:
         # noinspection PyBroadException
         try:
             if log_type == 'logs':
+                return True
                 path = 'logs'
                 if not os.path.isdir(path):
                     os.mkdir(path)
