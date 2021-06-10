@@ -192,7 +192,7 @@ class KuGame:
             if oldHtml != newHtml:
                 oldHtml = newHtml
                 self.tkBox.updateLabel(self.tkIndex, u'資料異動 : ' + self.base.getTime("Microseconds"))
-                self.base.json_encode({'data': newHtml})
+                #self.base.json_encode({'data': newHtml})
                 #self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
                 endcurl = time.time()
                 print(self.title + "_" + self.gameIndex + "_" + u'資料異動,耗時' + "{:.2f}".format(endcurl - startcurl))
