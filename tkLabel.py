@@ -58,7 +58,7 @@ class tkLabel():
             self.label_msg1.configure(text='現在時間:' + now)
             if int(float(time.time())) > int(float(self.globData['timestamp_end'])):
                 self.label_msg1.configure(text='現在時間:' + now + " - 腳本已終止")
-                if self.globData['is_test'] != "True":
+                if self.globData['is_test'] != "TRUE":
                     self.root.quit()  # 關閉訊息框
             else:
                 self.root.after(1000, self.update_clock)
