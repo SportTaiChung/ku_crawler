@@ -78,7 +78,7 @@ class kuGameOpen:
             self.tkBox.updateLabel(self.tkIndex, u"開啟 - " + str(index_def))
 
             while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-                print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
+                #print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
                 self.tkBox.updateLabel(self.tkIndex, "監測中 - " + self.base.getTime("Microseconds"))
                 oNewGameOpenList = ku_tools.getGameOpen(self.base)
 

@@ -2,6 +2,7 @@
 
 import os
 import json
+import time
 from google.protobuf import text_format
 from upload import init_session, upload_data
 from parsing import parse
@@ -139,7 +140,7 @@ class KuGame:
             self.base.log(self.title + "_gameTime", '',
                           oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), 'mapping')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-            print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
+            #print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
             self.tools.closeScroll(self.base.driver)
 
             if not self.checkBtnExist():
@@ -170,10 +171,11 @@ class KuGame:
         print(u'設定基本資料')
         self.tkBox.updateLabel(self.tkIndex, u'設定基本資料 : ' + self.base.getTime("Microseconds"))
         oldNotice = self.base.json_encode({'data': oldHtml})
-        self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice, 'logs')
+       # self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice, 'logs')
 
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-            print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
+            startcurl = time.time()
+            #print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
             self.tools.closeScroll(self.base.driver)
 
             if not self.checkBtnExist():
@@ -189,12 +191,15 @@ class KuGame:
 
             if oldHtml != newHtml:
                 oldHtml = newHtml
-                print(self.title + "_" + self.gameIndex + "_" + u'資料異動')
                 self.tkBox.updateLabel(self.tkIndex, u'資料異動 : ' + self.base.getTime("Microseconds"))
-                newNotice = self.base.json_encode({'data': newHtml})
-                self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
+                self.base.json_encode({'data': newHtml})
+                #self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
+                endcurl = time.time()
+                print(self.title + "_" + self.gameIndex + "_" + u'資料異動,耗時' + "{:.2f}".format(endcurl - startcurl))
             else:
                 self.tkBox.updateLabel(self.tkIndex, u'無變更 : ' + self.base.getTime("Microseconds"))
+                endcurl = time.time()
+                print(self.title + "_" + self.gameIndex + "_" + u'資料不變,耗時' + "{:.2f}".format(endcurl - startcurl))
 
             if self.globData['is_test'] != "TRUE":
                 data = parse(newHtml)
