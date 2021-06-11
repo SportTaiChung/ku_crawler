@@ -63,9 +63,9 @@ class kuGameOpen:
 
     def odd(self):
         try:
-            print(u"初始化註冊檔")
-            self.tkBox.updateLabel(self.tkIndex, u'初始化註冊檔 : ' + self.base.getTime("Microseconds"))
-            self.base.resetWinregKeyValue()
+            # print(u"初始化註冊檔")
+            # self.tkBox.updateLabel(self.tkIndex, u'初始化註冊檔 : ' + self.base.getTime("Microseconds"))
+            # self.base.resetWinregKeyValue()
 
             print(u"初始化資料")
             self.tkBox.updateLabel(self.tkIndex, u'初始化資料 : ' + self.base.getTime("Microseconds"))
