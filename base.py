@@ -154,8 +154,7 @@ class Base:
             if log_type == 'logs':
                 return True
                 path = 'logs'
-                if not os.path.isdir(path):
-                    os.mkdir(path)
+                self.checkPath(path)
                 _min = int(self.getTime("%M"))
                 _log_min = '_40_60'
                 print(_min)
@@ -168,17 +167,20 @@ class Base:
                 f.write(self.getTime("Microseconds") + '\n')
             elif log_type == 'mapping':
                 path = 'mapping'
-                if not os.path.isdir(path):
-                    os.mkdir(path)
+                self.checkPath(path)
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
                 f = open(txt_url, "a+")
             elif log_type == 'switch':
                 path = 'logs'
-                if not os.path.isdir(path):
-                    os.mkdir(path)
+                self.checkPath(path)
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
                 f = open(txt_url, "a+")
                 f.write(self.getTime("Microseconds") + '\n')
+            elif log_type == 'gameOpen':
+                path = 'logs'
+                self.checkPath(path)
+                txt_url = path + "\\" + file_name + '.txt'
+                f = open(txt_url, "w")
 
             if _type != '':
                 f.write(_type + '\n')
@@ -188,6 +190,10 @@ class Base:
         except Exception as e:
             print(e)
             time.sleep(0.1)
+
+    def checkPath(self, path):
+        if not os.path.isdir(path):
+            os.mkdir(path)
 
     def baseSoup(self, _html, _type):
         return BeautifulSoup(_html, _type)
@@ -206,6 +212,8 @@ class Base:
         winreg.CloseKey(key)
 
     def getWinregKey(self, subKey):
+
+        return self.getWinregKeyByFile(subKey)
         # noinspection PyBroadException
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
@@ -214,6 +222,21 @@ class Base:
             winreg.CreateKey(winreg.HKEY_CURRENT_USER, self.keyWinreg)
             value = ""
         return str(value)
+
+    def getWinregKeyByFile(self, subKey):
+        _value = ""
+        # noinspection PyBroadException
+        try:
+            txt_url = 'logs\\gameOpen.txt'
+            f = open(txt_url, 'r')
+            sGameOpen = f.read()
+            f.close()
+            oGameOpen = self.json_decode(sGameOpen)
+            if subKey in oGameOpen['data']:
+                _value = str(oGameOpen['data'][subKey])
+        except Exception:
+            time.sleep(0.01)
+        return _value
 
     def resetWinregKeyValue(self):
         # noinspection PyBroadException

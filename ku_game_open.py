@@ -70,40 +70,42 @@ class kuGameOpen:
             print(u"初始化資料")
             self.tkBox.updateLabel(self.tkIndex, u'初始化資料 : ' + self.base.getTime("Microseconds"))
             oOldGameOpenList = ku_tools.getGameOpen(self.base)
-            index_def = 0
-            for oOldGameOpenOne in oOldGameOpenList:
-                index_def = index_def + 1
-                self.base.setWinregKey(oOldGameOpenOne, '1')
-                self.base.log('檢查賽事開關', '', oOldGameOpenOne + u" - 開啟", 'switch')
-            self.tkBox.updateLabel(self.tkIndex, u"開啟 - " + str(index_def))
+            oOldGameOpenString = self.base.json_encode({'data': oOldGameOpenList})
+            self.base.log('gameOpen', '', oOldGameOpenString, 'gameOpen')
+            # index_def = 0
+            # for oOldGameOpenOne in oOldGameOpenList:
+            #     index_def = index_def + 1
+            #     self.base.setWinregKey(oOldGameOpenOne, '1')
+            #     self.base.log('檢查賽事開關', '', oOldGameOpenOne + u" - 開啟", 'switch')
+            # self.tkBox.updateLabel(self.tkIndex, u"開啟 - " + str(index_def))
 
             while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-                #print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
+                # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
                 self.tkBox.updateLabel(self.tkIndex, "監測中 - " + self.base.getTime("Microseconds"))
                 oNewGameOpenList = ku_tools.getGameOpen(self.base)
+                oNewGameOpenString = self.base.json_encode({'data': oNewGameOpenList})
+                self.base.log('gameOpen', '', oNewGameOpenString, 'gameOpen')
+                # # 先檢查舊的是否還有在 新的裡面、 沒有就是關閉了
+                # index_close = 0
+                # for oOldGameOpenOne in oOldGameOpenList:
+                #     if oOldGameOpenOne not in oNewGameOpenList:
+                #         index_close = index_close + 1
+                #         # print('關閉')
+                #         # print(oOldGameOpenOne)
+                #         self.base.setWinregKey(oOldGameOpenOne, '0')
+                #         self.base.log('檢查賽事開關', '', oOldGameOpenOne + u" - 關閉", 'switch')
+                # # 再檢查新的是否有在 舊的裡面、 沒有就是新開啟的
+                # index_open = 0
+                # for oNewGameOpenOne in oNewGameOpenList:
+                #     if oNewGameOpenOne not in oOldGameOpenList:
+                #         index_open = index_open + 1
+                #         # print('開啟')
+                #         # print(oNewGameOpenOne)
+                #         self.base.setWinregKey(oNewGameOpenOne, '1')
+                #         self.base.log('檢查賽事開關', '', oNewGameOpenOne + u" - 開啟", 'switch')
+                # oOldGameOpenList = oNewGameOpenList
 
-                # 先檢查舊的是否還有在 新的裡面、 沒有就是關閉了
-                index_close = 0
-                for oOldGameOpenOne in oOldGameOpenList:
-                    if oOldGameOpenOne not in oNewGameOpenList:
-                        index_close = index_close + 1
-                        # print('關閉')
-                        # print(oOldGameOpenOne)
-                        self.base.setWinregKey(oOldGameOpenOne, '0')
-                        self.base.log('檢查賽事開關', '', oOldGameOpenOne + u" - 關閉", 'switch')
-                # 再檢查新的是否有在 舊的裡面、 沒有就是新開啟的
-                index_open = 0
-                for oNewGameOpenOne in oNewGameOpenList:
-                    if oNewGameOpenOne not in oOldGameOpenList:
-                        index_open = index_open + 1
-                        # print('開啟')
-                        # print(oNewGameOpenOne)
-                        self.base.setWinregKey(oNewGameOpenOne, '1')
-                        self.base.log('檢查賽事開關', '', oNewGameOpenOne + u" - 開啟", 'switch')
-                oOldGameOpenList = oNewGameOpenList
-
-                self.tkBox.updateLabel(self.tkIndex, u"此次開啟" + str(index_open) + u"關閉" + str(index_close)+
-                                       u'、等待十秒後重試')
+                self.tkBox.updateLabel(self.tkIndex, u'等待十秒後重試')
                 self.base.sleep(10)
 
         except Exception as e:

@@ -140,7 +140,7 @@ class KuGame:
             self.base.log(self.title + "_gameTime", '',
                           oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), 'mapping')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-            #print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
+            # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
             self.tools.closeScroll(self.base.driver)
 
             if not self.checkBtnExist():
@@ -171,11 +171,11 @@ class KuGame:
         print(u'設定基本資料')
         self.tkBox.updateLabel(self.tkIndex, u'設定基本資料 : ' + self.base.getTime("Microseconds"))
         oldNotice = self.base.json_encode({'data': oldHtml})
-       # self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice, 'logs')
+        # self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice, 'logs')
 
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             startcurl = time.time()
-            #print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
+            # print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
             self.tools.closeScroll(self.base.driver)
 
             if not self.checkBtnExist():
@@ -192,8 +192,8 @@ class KuGame:
             if oldHtml != newHtml:
                 oldHtml = newHtml
                 self.tkBox.updateLabel(self.tkIndex, u'資料異動 : ' + self.base.getTime("Microseconds"))
-                #self.base.json_encode({'data': newHtml})
-                #self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
+                # self.base.json_encode({'data': newHtml})
+                # self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
                 endcurl = time.time()
                 print(self.title + "_" + self.gameIndex + "_" + u'資料異動,耗時' + "{:.2f}".format(endcurl - startcurl))
             else:

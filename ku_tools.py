@@ -44,8 +44,8 @@ def closeScroll(driver):
         time.sleep(0.1)
 
     if isRe:
-        print(u"等待兩秒檢查是否還有需要關閉")
-        time.sleep(2)
+        print(u"等待一秒檢查是否還有需要關閉")
+        time.sleep(1)
         return closeScroll(driver)
     else:
         return True
@@ -164,6 +164,6 @@ def getGameOpen(base):
                 index = index + 1
 
     except Exception:
-            base.sleep(1)
+        base.sleep(1)
 
     return oGameOpen
