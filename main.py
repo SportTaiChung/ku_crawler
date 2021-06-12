@@ -60,6 +60,7 @@ def defaultData():
 # 登入
 def doLogin():
     global globData
+    print(globData)
     main_base.defaultDriverBase()
     print(u"網址:" + globData['url'])
     main_base.driver.get(globData['url'])
@@ -118,9 +119,9 @@ def startGame():
     # 設定流程框
     # print(u"開啟流程框")
     tkLabel = tk.tkLabel(oOpenList, globData)
-    # p_tkLabel = mp.Process(target=tkLabel.start)
-    # processList.append(p_tkLabel)
-    # main_base.sleep(1)
+    p_tkLabel = mp.Process(target=tkLabel.start)
+    processList.append(p_tkLabel)
+
 
     print(u"開啟比賽視窗")
     for oOpenKey in oOpenList:
@@ -151,5 +152,5 @@ if __name__ == '__main__':
     # 開始工作
     for p in processList:
         p.start()
-        main_base.sleep(10)
-    main_base.driver.quit()
+        main_base.sleep(1)
+    # main_base.driver.quit()

@@ -1,6 +1,7 @@
 from tkinter import *
 import time
-
+import os
+import shutil
 
 
 class VerticalScrolledFrame(Frame):
@@ -45,6 +46,19 @@ class VerticalScrolledFrame(Frame):
 
         canvas.bind('<Configure>', _configure_canvas)
 
+        path = 'logs\\label'
+        try:
+            shutil.rmtree(path)
+            path = 'logs'
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            path = 'logs\\label'
+            if not os.path.isdir(path):
+                os.mkdir(path)
+        except OSError as e:
+            print(e)
+
+
 
 class tkLabel():
     def __init__(self, _data, _globData):
@@ -61,18 +75,41 @@ class tkLabel():
                 if self.globData['is_test'] != "TRUE":
                     self.root.quit()  # 關閉訊息框
             else:
-                self.root.after(1000, self.update_clock)
+                self.root.after(500, self.update_clock)
+            self.readLabel()
         except Exception as e:
             print("update_clock error")
             self.root.quit()  # 關閉訊息框
 
+    def readLabel(self):
+        # noinspection PyBroadException
+        try:
+            for index in self.data:
+                txt_url = "logs\\label\\label_" + str(index) + '.txt'
+                f = open(txt_url, 'r')
+                msg = f.read()
+                f.close()
+                self.data[index]['label'].configure(text=msg)
+        except Exception:
+            time.sleep(0.01)
+
     def updateLabel(self, index, msg):
         # noinspection PyBroadException
         try:
-            self.data[index]['label'].configure(text=msg)
-        except Exception:
+            txt_url = "logs\\label\\label_" + str(index) + '.txt'
+            f = open(txt_url, "w")
+            f.write(msg + '\n')
+            f.close()
+        except Exception as e:
             print("update error")
-            self.root.quit()  # 關閉訊息框
+            print(e)
+            # self.root.quit()  # 關閉訊息框
+        # # noinspection PyBroadException
+        # try:
+        #     self.data[index]['label'].configure(text=msg)
+        # except Exception:
+        #     print("update error")
+        #     self.root.quit()  # 關閉訊息框
 
     def start(self):
         self.root = Tk()
@@ -81,7 +118,7 @@ class tkLabel():
         self.root.attributes('-topmost', True)
         # self.root.maxsize(0, 0)
         # self.root.resizable(0, 0)
-        self.frame = VerticalScrolledFrame(self.root,len(self.data))
+        self.frame = VerticalScrolledFrame(self.root, len(self.data))
         self.frame.pack()
         self.label = Label(text="©Copyright 2021-05 Being Studio.")
         self.label.pack()
@@ -111,6 +148,7 @@ class tkLabel():
             self.data[one]['label'] = label_2
 
         self.start_time = time.strftime("%H:%M:%S")
+        print(self.data)
         self.update_clock()
         self.root.mainloop()
 
