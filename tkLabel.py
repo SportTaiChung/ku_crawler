@@ -94,15 +94,17 @@ class tkLabel():
             time.sleep(0.01)
 
     def updateLabel(self, index, msg):
+        print("updateLabel")
         # noinspection PyBroadException
-        try:
-            txt_url = "logs\\label\\label_" + str(index) + '.txt'
-            f = open(txt_url, "w")
-            f.write(msg + '\n')
-            f.close()
-        except Exception as e:
-            print("update error")
-            print(e)
+      #  try:
+      #      if (self.globData['is_test'] == "TRUE"):
+      #          txt_url = "logs\\label\\label_" + str(index) + '.txt'
+      #          f = open(txt_url, "w")
+      #          f.write(msg + '\n')
+      #          f.close()
+      #  except Exception as e:
+      #      print("update error")
+      #      print(e)
             # self.root.quit()  # 關閉訊息框
         # # noinspection PyBroadException
         # try:
