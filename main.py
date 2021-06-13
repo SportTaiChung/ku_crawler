@@ -118,7 +118,7 @@ def startGame():
     global processList
     # 設定流程框
     # print(u"開啟流程框")
-   # tkLabel = None
+    tkLabel = None
    # if (globData['is_test'] == "TRUE"):
     #    tkLabel = tk.tkLabel(oOpenList, globData)
    #     p_tkLabel = mp.Process(target=tkLabel.start)
