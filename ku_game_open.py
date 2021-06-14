@@ -7,14 +7,11 @@ class kuGameOpen:
         import base as base
         import ku_tools as tools
         self.base = base.Base()
-        self.tools = tools.KuTools()
+        self.tools = tools.KuTools(_globData)
         self.globData = _globData  #
         self.tkBox = _tkBox  #
         self.tkIndex = _tk_index  #
         self.title = "檢查賽事開關"
-
-    def test(self):
-        print(self.title + " : test")
 
     # globData['is_test']
     def start(self):
@@ -24,7 +21,7 @@ class kuGameOpen:
                 print(self.title + "_start")
                 if self.base.driver is None:
                     self.base.defaultDriverBase()
-                    self.tools.openWeb(self.base, self.globData)
+                    self.tools.openWeb(self.base)
                     print(u"導至遊戲")
                     self.updateGameLabel(u'導至遊戲 : ' + self.base.getTime("Microseconds"))
                     self.base.driver.get(self.globData['ku_url_end'])

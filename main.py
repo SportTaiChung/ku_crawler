@@ -29,6 +29,7 @@ processList = []
 # 設定帳號相關信息
 def defaultData():
     global globData
+    print(__name__ + "defaultData")
 
     with open(config_name, 'r') as f:
         content_list = f.read().splitlines()
@@ -60,7 +61,8 @@ def defaultData():
 # 登入
 def doLogin():
     global globData
-    print(globData)
+    print(__name__ + "doLogin")
+    # print(globData)
     main_base.defaultDriverBase()
     print(u"網址:" + globData['url'])
     main_base.driver.get(globData['url'])
@@ -95,6 +97,7 @@ def doLogin():
 # 設定場次資料
 def setGame():
     global oOpenList
+    print(__name__ + "setGame")
     with open(globData['yaml_name'] + '.yaml', 'r', encoding='utf8') as f:
         oSportList = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -116,14 +119,14 @@ def setGame():
 
 def startGame():
     global processList
+    print(__name__ + "startGame")
     # 設定流程框
     # print(u"開啟流程框")
     tkLabel = None
-   # if (globData['is_test'] == "TRUE"):
-    #    tkLabel = tk.tkLabel(oOpenList, globData)
-   #     p_tkLabel = mp.Process(target=tkLabel.start)
-    #    processList.append(p_tkLabel)
-
+    if (globData['is_test'] == "TRUE"):
+        tkLabel = tk.tkLabel(oOpenList, globData)
+        p_tkLabel = mp.Process(target=tkLabel.start)
+        processList.append(p_tkLabel)
 
     print(u"開啟比賽視窗")
     for oOpenKey in oOpenList:
@@ -141,18 +144,24 @@ def startGame():
         processList.append(p)
 
 
+# ------------------------
 
 # ------------------------
 if __name__ == '__main__':
+    mp.freeze_support()
     main_base = base.Base()
     defaultData()
     doLogin()
     setGame()
     startGame()
-    print(u'開始抓吧')
-    print(len(processList))
+    print(u'開始抓吧 - ' + str(len(processList)))
     # 開始工作
     for p in processList:
         p.start()
         main_base.sleep(5)
-    # main_base.driver.quit()
+
+    print(u'主流程結束')
+    main_base.driver.quit()
+
+    for p in processList:
+        p.join()

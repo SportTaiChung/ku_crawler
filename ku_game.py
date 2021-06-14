@@ -16,7 +16,7 @@ class KuGame:
         import base as base
         import ku_tools as tools
         self.base = base.Base()
-        self.tools = tools.KuTools()
+        self.tools = tools.KuTools(_globData)
         self.globData = _globData  #
         self.tkBox = _tkBox  #
         self.tkIndex = _tk_index  #
@@ -48,7 +48,7 @@ class KuGame:
                 if self.base.driver == None:
                     self.updateGameLabel(u'開啟視窗 ' + self.base.getTime("Microseconds"))
                     self.base.defaultDriverBase()
-                    self.tools.openWeb(self.base, self.globData)
+                    self.tools.openWeb(self.base)
                     self.updateGameLabel(u'導至遊戲 : ' + self.base.getTime("Microseconds"))
                     self.base.driver.get(self.globData['ku_url_end'])
                     self.base.sleep(3)

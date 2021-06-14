@@ -84,9 +84,15 @@ class tkLabel():
     def readLabel(self):
         # noinspection PyBroadException
         try:
+            path = 'logs'
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            path = 'logs\\label'
+            if not os.path.isdir(path):
+                os.mkdir(path)
             for index in self.data:
                 txt_url = "logs\\label\\label_" + str(index) + '.txt'
-                f = open(txt_url, 'r')
+                f = open(txt_url, 'w')
                 msg = f.read()
                 f.close()
                 self.data[index]['label'].configure(text=msg)
@@ -94,17 +100,21 @@ class tkLabel():
             time.sleep(0.01)
 
     def updateLabel(self, index, msg):
-        print("updateLabel")
         # noinspection PyBroadException
-      #  try:
-      #      if (self.globData['is_test'] == "TRUE"):
-      #          txt_url = "logs\\label\\label_" + str(index) + '.txt'
-      #          f = open(txt_url, "w")
-      #          f.write(msg + '\n')
-      #          f.close()
-      #  except Exception as e:
-      #      print("update error")
-      #      print(e)
+        try:
+            path = 'logs'
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            path = 'logs\\label'
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            txt_url = "logs\\label\\label_" + str(index) + '.txt'
+            f = open(txt_url, "w")
+            f.write(msg + '\n')
+            f.close()
+        except Exception as e:
+            print("update error")
+            print(e)
             # self.root.quit()  # 關閉訊息框
         # # noinspection PyBroadException
         # try:
