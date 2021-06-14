@@ -4,16 +4,19 @@ import time
 
 class KuTools:
 
-    def __init__(self):
+    def __init__(self,_globData):
         time.sleep(0.01)
+        self.globData = _globData
 
-    def openWeb(self, base, globData):
+    def openWeb(self, base):
         print(u"開啟新視窗")
-        base.driver.get(globData['ku_url_start'])
+        base.driver.get(self.globData['ku_url_start'])
+        base.sleep(2)
+        print(u"刪除信息")
         base.driver.delete_all_cookies()
         base.sleep(2)
         print(u"設定登入信息")
-        for oCookies in globData['aCookies']:
+        for oCookies in self.globData['aCookies']:
             # print(oCookies)
             base.driver.add_cookie(oCookies)
         base.sleep(2)
