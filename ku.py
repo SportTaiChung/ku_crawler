@@ -50,9 +50,9 @@ def begin(yaml_name):
                 }
     # print(oOpenList)
     print(u"開啟流程框")
-    tkLabel = tk.tkLabel(oOpenList, globData)
-    thread_tk = threading.Timer(1.0, tkLabel.start, args=[])
-    thread_tk.start()
+    # tkLabel = tk.tkLabel(oOpenList, globData)
+    # thread_tk = threading.Timer(1.0, tkLabel.start, args=[])
+    # thread_tk.start()
     main_base.sleep(5)
 
     print(u"開啟比賽視窗")

@@ -1,6 +1,7 @@
 # coding: utf-8
 import traceback
 import pika
+from constants import Ku
 
 
 def init_session(url):
@@ -10,8 +11,9 @@ def init_session(url):
     return connection, channel
 
 
-def upload_data(channel, data):
+def upload_data(channel, data, sport_type_id):
     try:
-        channel.basic_publish(exchange='TX_SC', routing_key='', body=data.SerializeToString())
+        # exchange = Ku.Mapping.get_exchange_name(sport_type_id)
+        channel.basic_publish(exchange='KU', routing_key='', body=data.SerializeToString())
     except Exception as ex:
         traceback.print_exc()

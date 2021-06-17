@@ -5,6 +5,9 @@ verify_ssl = true
 
 [dev-packages]
 yapf = "*"
+py-spy = "*"
+pprofile = "*"
+pyinstrument = "*"
 
 [packages]
 selenium = "*"
@@ -13,6 +16,7 @@ pyquery = "*"
 protobuf = "*"
 pika = "*"
 pyinstaller = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3.7"

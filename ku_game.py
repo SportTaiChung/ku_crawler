@@ -2,7 +2,11 @@
 
 import os
 import json
+import csv
+import traceback
 import time
+import ku_tools as tools
+from time import perf_counter
 from google.protobuf import text_format
 from upload import init_session, upload_data
 from parsing import parse
@@ -14,7 +18,6 @@ class KuGame:
     def __init__(self, _globData, _tkBox, _tk_index, _i_sport_type, _i_oSport, _title, _btn, _game):
         print([_tk_index, _i_sport_type, _i_oSport, _title, _btn, _game])
         import base as base
-        import ku_tools as tools
         self.base = base.Base()
         self.tools = tools.KuTools(_globData)
         self.globData = _globData  #
@@ -122,22 +125,18 @@ class KuGame:
             print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤2')
             print(e)
             self.updateGameLabel(u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
+            with open(f'logs/{self.title}_{self.gameTitle}_{self.i_sport_type}_{self.i_oSport}_error.log', 'a+', encoding='utf-8') as log:
+                log.write(traceback.format_exc())
+                log.write('\n')
             # newNotice = self.base.json_encode({'data': e})
             # self.base.log('error2', '-----', newNotice, 'logs')
         return True
 
     def gameTime(self, oldHtml):
-        print(u'寫入比賽場次')
-        if self.globData['is_test'] != "TRUE":
-            data = {}
-            if os.path.exists('event_time.json'):
-                with open('event_time.json', encoding='utf-8') as f:
-                    data = json.load(f)
-            self.updateGameLabel(u'寫入比賽場次 : ' + self.base.getTime("Microseconds"))
         oGameData = self.tools.getGameTime(self.base, oldHtml)
+        print(u'寫入比賽場次')
+        self.updateGameLabel(u'寫入比賽場次 : ' + self.base.getTime("Microseconds"))
 
-        if self.globData['is_test'] != "TRUE" and data:
-            oGameData.update(data)
         for oGameKey in oGameData:
             print(oGameKey)
             self.base.log(self.title + "_gameTime", '',
@@ -165,9 +164,6 @@ class KuGame:
             else:
                 print(u'無新增場次')
                 self.updateGameLabel(u'無新增場次 : ' + self.base.getTime("Microseconds"))
-            if self.globData['is_test'] != "TRUE":
-                with open('event_time.json', mode='w', encoding='utf-8') as f:
-                    json.dump(oGameData, f, ensure_ascii=False)
 
             self.base.sleep(0.1)
 
@@ -177,42 +173,65 @@ class KuGame:
         oldNotice = self.base.json_encode({'data': oldHtml})
         # self.base.log(self.title + "_" + self.gameTitle, 'setBase', oldNotice, 'logs')
 
-        while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
-            startcurl = time.time()
-            # print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
-            self.tools.closeScroll(self.base.driver)
+        file_existed = os.path.exists(f'stats/{self.gameTitle}.csv')
+        with open(f'stats/{self.gameTitle}.csv', 'a+', encoding='utf-8', newline='') as stat_file:
+            stat = {}
+            writer = csv.DictWriter(stat_file, fieldnames=['休眠間隔', '摺疊賽事', '檢查按鈕', '取得資料', '檢查資料', '解析耗時', '更新面板', '上傳耗時', '執行耗時'])
+            if not file_existed:
+                writer.writeheader()
+            end_upload = perf_counter()
+            while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
+                start_time = perf_counter()
+                stat['休眠間隔'] = round(start_time - end_upload, 3)
+                # print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
+                self.tools.closeScroll(self.base.driver)
+                end_close_scroll = perf_counter()
+                stat['摺疊賽事'] = round(end_close_scroll - start_time, 3)
 
-            if not self.checkBtnExist():
-                return True
-
-            newHtml = self.base.getHtml("div.gameListAll_scroll")
-
-            if newHtml == "":
-                print(u"檢查有無資料")
-                if not self.checkNoDate():
+                if not self.checkBtnExist():
                     return True
-                continue
+                end_check_btn = perf_counter()
+                stat['檢查按鈕'] = round(end_check_btn - end_close_scroll, 3)
 
-            if oldHtml != newHtml:
-                oldHtml = newHtml
-                self.updateGameLabel(u'資料異動 : ' + self.base.getTime("Microseconds"))
-                # self.base.json_encode({'data': newHtml})
-                # self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
-                endcurl = time.time()
-                print(self.title + "_" + self.gameIndex + "_" + u'資料異動,耗時' + "{:.2f}".format(endcurl - startcurl))
-            else:
-                self.updateGameLabel(u'無變更 : ' + self.base.getTime("Microseconds"))
-                endcurl = time.time()
-                print(self.title + "_" + self.gameIndex + "_" + u'資料不變,耗時' + "{:.2f}".format(endcurl - startcurl))
+                newHtml = self.base.getHtml("div.gameListAll_scroll")
+                end_get_html = perf_counter()
+                stat['取得資料'] = round(end_get_html - end_check_btn, 3)
 
-            if self.globData['is_test'] != "TRUE":
-                data = parse(newHtml)
-                upload_data(self.channel, data)
-                print(text_format.MessageToString(data, as_utf8=True))
-                # self.channel.close()
-                # self.connection.close()
+                if newHtml == "":
+                    print(u"檢查有無資料")
+                    if not self.checkNoDate():
+                        return True
+                    continue
+                end_check_data = perf_counter()
+                stat['檢查資料'] = round(end_check_data - end_get_html, 3)
 
-            self.base.sleep(0.1)
+                data = parse(newHtml, self.i_sport_type, self.i_oSport, live=('滾球' in self.gameTitle))
+                end_parsing = perf_counter()
+                stat['解析耗時'] = round(end_parsing - end_check_data, 3)
+                if oldHtml != newHtml:
+                    oldHtml = newHtml
+                    self.updateGameLabel(u'資料異動 : ' + self.base.getTime("Microseconds"))
+                    # newNotice = self.base.json_encode({'data': newHtml})
+                    # self.base.log(self.title + "_" + self.gameTitle, 'change', newNotice, 'logs')
+                else:
+                    self.updateGameLabel(u'無變更 : ' + self.base.getTime("Microseconds"))
+                    pass
+                end_update_gui = perf_counter()
+                stat['更新面板'] = round(end_update_gui - end_parsing, 3)
+
+                if self.globData['is_test'] != "TRUE":
+                    if self.connection.is_closed or self.channel.is_closed:
+                        self.connection, self.channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
+                    if data:
+                        upload_data(self.channel, data, self.i_sport_type)
+                    with open(f'{self.title}_{self.gameTitle}.log', 'w', encoding='utf-8') as dump:
+                        dump.write(text_format.MessageToString(data, as_utf8=True))
+                end_upload = perf_counter()
+                stat['上傳耗時'] = round(end_upload - end_update_gui, 3)
+
+                self.base.sleep(0.1)
+                stat['執行耗時'] = round(perf_counter() - start_time, 3)
+                writer.writerow(stat)
 
     def checkNoDate(self):
         self.base.driver.implicitly_wait(1)

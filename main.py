@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import time
 import yaml
 import multiprocessing as mp
 import base as base
@@ -130,15 +131,11 @@ def startGame():
 
     print(u"開啟比賽視窗")
     for oOpenKey in oOpenList:
-        print(oOpenKey)
         oOpen = oOpenList[oOpenKey]
-        print(oOpen)
         if oOpenKey == 0:  # 監測場次開啟關閉
-            print(oOpen['title'])
-            page = ku_game_open.kuGameOpen(globData, tkLabel, oOpenKey)
+            page = ku_game_open.kuGameOpen(globData, None, oOpenKey)
         else:
-            print(oOpen['title'])
-            page = ku_game.KuGame(globData, tkLabel, oOpenKey, oOpen['i_sport_type'], oOpen['i_oSport'], oOpen['title'],
+            page = ku_game.KuGame(globData, None, oOpenKey, oOpen['i_sport_type'], oOpen['i_oSport'], oOpen['title'],
                                   oOpen['btn'], oOpen['game'])
         p = mp.Process(target=page.start)
         processList.append(p)

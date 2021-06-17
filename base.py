@@ -101,7 +101,7 @@ class Base:
     def json_encode(self, obj):
         # noinspection PyBroadException
         try:
-            return json.dumps(obj)
+            return json.dumps(obj, ensure_ascii=False)
         except Exception:
             return False
 
@@ -163,18 +163,18 @@ class Base:
                 elif 20 < _min < 40:
                     _log_min = '_20_40'
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d_%H") + _log_min + '.txt'
-                f = open(txt_url, "a+")
+                f = open(txt_url, "a+", encoding='utf-8')
                 f.write(self.getTime("Microseconds") + '\n')
             elif log_type == 'mapping':
                 path = 'mapping'
                 self.checkPath(path)
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
-                f = open(txt_url, "a+")
+                f = open(txt_url, "a+", encoding='utf-8')
             elif log_type == 'switch':
                 path = 'logs'
                 self.checkPath(path)
                 txt_url = path + "\\" + file_name + "_" + self.getTime("%Y%m%d") + '.txt'
-                f = open(txt_url, "a+")
+                f = open(txt_url, "a+", encoding='utf-8')
                 f.write(self.getTime("Microseconds") + '\n')
             elif log_type == 'gameOpen':
                 path = 'logs'

@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
 
-class kuGameOpen:
+import os
+import json
+import traceback
+from google.protobuf import text_format
+
+import ku_tools as tools
+import base
+from upload import init_session, upload_data
+from parsing import parse
+
+
+class kuGameOpen():
     # 建構式
     # globData, tkLabel, i_sport_type, title, btn, game
     def __init__(self, _globData, _tkBox, _tk_index):
-        import base as base
-        import ku_tools as tools
         self.base = base.Base()
         self.tools = tools.KuTools(_globData)
         self.globData = _globData  #
@@ -30,6 +39,9 @@ class kuGameOpen:
             except Exception as e:
                 print(self.title + "_" + u'發生錯誤1', e)
                 self.updateGameLabel(u'發生錯誤1 : ' + self.base.getTime("Microseconds"))
+                with open(f'logs/{self.title}-error.log', 'a+', encoding='utf-8') as log:
+                    log.write(traceback.format_exc())
+                    log.write('\n')
                 # newNotice = self.base.json_encode({'data': e})
                 # self.base.log('error1', '-----', newNotice, 'logs')
                 self.base.sleep(0.1)
