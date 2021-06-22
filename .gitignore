@@ -130,6 +130,9 @@ secrets.yml
 
 # tmp
 logs/
+*.html
+*.csv
+*.txt
 *.pickle
 tx_*.bin
 tx_*.log

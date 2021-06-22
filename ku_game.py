@@ -32,19 +32,18 @@ class KuGame:
         self.gameType = self.gameTitle.split("-")[0]
         self.gameIndex = str(_game['gameIndex'])
 
-        [connection, channel] = ["", ""]
-        if self.globData['is_test'] != "TRUE":
-            connection, channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
-
-        self.connection = connection
-        self.channel = channel
+        self.connection = None
+        self.channel = None
 
     def test(self):
         print(self.title + " : test")
 
     # globData['is_test']
     def start(self):
+        if self.globData['is_test'] != "TRUE":
+            self.connection, self.channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
+
             # noinspection PyBroadException
             try:
                 print(self.title + "_" + str(self.i_oSport) + "_start")
@@ -224,8 +223,8 @@ class KuGame:
                         self.connection, self.channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
                     if data:
                         upload_data(self.channel, data, self.i_sport_type)
-                    with open(f'{self.title}_{self.gameTitle}.log', 'w', encoding='utf-8') as dump:
-                        dump.write(text_format.MessageToString(data, as_utf8=True))
+                with open(f'{self.title}_{self.gameTitle}.log', 'w', encoding='utf-8') as dump:
+                    dump.write(text_format.MessageToString(data, as_utf8=True))
                 end_upload = perf_counter()
                 stat['上傳耗時'] = round(end_upload - end_update_gui, 3)
 

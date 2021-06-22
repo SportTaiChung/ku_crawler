@@ -184,14 +184,14 @@ class Ku:
                         game_type = Period.FULL if not half else Period.FIRST_HALF
                 elif game_type_id == 2:
                     if live:
-                        game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF
+                        game_type = Period.LIVE_FIRST_HALF
                     else:
-                        game_type = Period.FULL if not half else Period.FIRST_HALF
+                        game_type = Period.FIRST_HALF
                 elif game_type_id == 3:
                     if live:
-                        game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF
+                        game_type = Period.LIVE_FIRST_HALF
                     else:
-                        game_type = Period.FULL if not half else Period.FIRST_HALF
+                        game_type = Period.FIRST_HALF
                 elif game_type_id == 4:
                     if live:
                         game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF

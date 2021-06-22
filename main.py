@@ -155,7 +155,7 @@ if __name__ == '__main__':
     # 開始工作
     for p in processList:
         p.start()
-        main_base.sleep(5)
+        main_base.sleep(10)
 
     print(u'主流程結束')
     main_base.driver.quit()
