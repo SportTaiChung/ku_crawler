@@ -142,6 +142,7 @@ class KuGame:
                           oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), 'mapping')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
+            self.base.driver.execute_script("Outer.ChangeSort(Args.SortTime)")
             self.tools.closeScroll(self.base.driver)
 
             if not self.checkBtnExist():
@@ -183,6 +184,7 @@ class KuGame:
                 start_time = perf_counter()
                 stat['休眠間隔'] = round(start_time - end_upload, 3)
                 # print(self.title + "_" + self.gameIndex + " - " + self.base.getTime("Microseconds"))
+                self.base.driver.execute_script("Outer.ChangeSort(Args.SortTime)")
                 self.tools.closeScroll(self.base.driver)
                 end_close_scroll = perf_counter()
                 stat['摺疊賽事'] = round(end_close_scroll - start_time, 3)
