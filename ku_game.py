@@ -236,7 +236,7 @@ class KuGame:
 
     def checkNoDate(self):
         self.base.driver.implicitly_wait(1)
-        while True:
+        while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             # noinspection PyBroadException
             try:
 
