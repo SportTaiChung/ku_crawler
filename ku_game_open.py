@@ -115,6 +115,7 @@ class kuGameOpen():
 
         except Exception as e:
             print(self.title + "_" + u'發生錯誤2')
+            traceback.print_exc()
             self.updateGameLabel(u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
             newNotice = self.base.json_encode({'data': e})
             self.base.log('error2', '-----', newNotice, 'logs')

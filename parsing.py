@@ -169,7 +169,7 @@ def parse(html, sport_id, game_type_id, live=False):
                             event_1st.draw = de_1st_draw_odds
                         event_1st.de.CopyFrom(spec.onetwo(home=de_1st_home_odds, away=de_1st_away_odds))
                         # 上半場讓分
-                        advanced_team_1st = 'home' if cells[4].cssselect('ul > li:nth-child(1) > div.GLOdds_L') else 'away'
+                        advanced_team_1st = 'home' if get_value(cells[4].cssselect('ul > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_1st_line = cells[4].cssselect('ul > li:nth-child(1) > div.GLOdds_L')[0].text or cells[4].cssselect('ul > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_1st_home_line, zf_1st_away_line = compute_zf_line(zf_1st_line, advanced_team_1st)
                         home_zf_1st_odds = get_value(cells[4].cssselect('ul > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
@@ -181,7 +181,7 @@ def parse(html, sport_id, game_type_id, live=False):
                                                         odds=away_zf_1st_odds)))
                     elif sport_type is not GameType.eSport and sport_type is not GameType.hockey:
                         # 上半場讓分
-                        advanced_team_1st = 'home' if cells[4].cssselect('ul > li:nth-child(1) > div.GLOdds_L') else 'away'
+                        advanced_team_1st = 'home' if get_value(cells[4].cssselect('ul > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_1st_line = cells[4].cssselect('ul > li:nth-child(1) > div.GLOdds_L')[0].text or cells[4].cssselect('ul > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_1st_home_line, zf_1st_away_line = compute_zf_line(zf_1st_line, advanced_team_1st)
                         home_zf_1st_odds = get_value(cells[4].cssselect('ul > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
@@ -455,7 +455,7 @@ def parse(html, sport_id, game_type_id, live=False):
                     if sport_type is GameType.basketball:
                         event_full_15min = spec.ApHdc()
                         event_full_15min.CopyFrom(event)
-                        event_full_15min.game_id = event_id
+                        event_full_15min.game_id = f'{event_id}{33}'
                         event_full_15min.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, live=live).value
                         time_range = cells[1].cssselect('div:nth-child(1)')[0].text
                         event_full_15min.information.league += f'-({time_range})'
@@ -576,7 +576,7 @@ def parse(html, sport_id, game_type_id, live=False):
                             event_total_goal.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                             event_total_period = spec.ApHdc()
                             event_total_period.CopyFrom(event_total_goal)
-                            event_total_period.game_id = f'{event_id}1{i}'
+                            event_total_period.game_id = f'{event_id}01{i}'
                             event_total_period.information.league += f'-{title}-團隊總得分'
                             data.aphdc.append(event_total_period)
                     elif sport_type is GameType.baseball:
@@ -672,8 +672,24 @@ def parse(html, sport_id, game_type_id, live=False):
                         score_sum['2-3'] = odds[1].text or '0'
                         score_sum['4-6'] = odds[2].text or '0'
                         score_sum['7+'] = odds[3].text or '0'
+                        score_sum_1st_half = {
+                            '0': '0',
+                            '1': '0',
+                            '2': '0',
+                            '3+': '0',
+                        }
+                        score_sum['0'] = odds[4].text or '0'
+                        score_sum['1'] = odds[5].text or '0'
+                        score_sum['2'] = odds[6].text or '0'
+                        score_sum['3+'] = odds[7].text or '0'
+                        event_score_sum_1st_half = spec.ApHdc()
+                        event_score_sum_1st_half.CopyFrom(event_score_sum)
+                        event_score_sum_1st_half.game_id = f'{event_id}1'
+                        event_score_sum.game_type = Period.FIRST_HALF.value
                         event_score_sum.multi = json.dumps(score_sum)
+                        event_score_sum_1st_half.multi = json.dumps(score_sum_1st_half)
                         data.aphdc.append(event_score_sum)
+                        data.aphdc.append(event_score_sum_1st_half)
                     elif sport_type is GameType.baseball:
                         event_total_goal = spec.ApHdc()
                         event_total_goal.CopyFrom(event)

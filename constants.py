@@ -77,6 +77,7 @@ class Ku:
     class Mapping:
         sport_id_name = {
             '11': '足球',
+            '53': '足球',
             '12': '籃球',
             '13': '棒球',
             '14': '網球',
@@ -92,6 +93,7 @@ class Ku:
         }
         sport_game_class = {
             '11': 'soccer',
+            '53': 'soccer',
             '12': 'basketball',
             '13': 'baseball',
             '14': 'tennis',
@@ -110,6 +112,7 @@ class Ku:
         def get_exchange_name(sport_type_id):
             sport_type_id_exchange_mapping = {
                 '11': 'TX_SC',
+                '53': 'TX_SC',
                 '12': 'TX_BK',
                 '13': 'TX_BS',
                 '14': 'TX_TN',
@@ -174,6 +177,8 @@ class Ku:
                         game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF
                     else:
                         game_type = Period.FULL if not half else Period.FIRST_HALF
+                elif game_type_id == 4:
+                    game_type = Period.SECOND_HALF
             elif sport_type is GameType.baseball:
                 if game_type_id == 0:
                     game_type = Period.FULL

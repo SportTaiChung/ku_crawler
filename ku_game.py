@@ -103,8 +103,9 @@ class KuGame:
 
             print(u"類型")
             self.updateGameLabel(u'類型' + self.base.getTime("Microseconds"))
-            self.base.driver.execute_script(
-                "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
+            if self.i_sport_type != '53':
+                self.base.driver.execute_script(
+                    "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
             self.base.sleep(1)
 
             print(u"檢查有無資料")
@@ -123,6 +124,7 @@ class KuGame:
         except Exception as e:
             print(self.title + "_" + str(self.i_oSport) + "_" + u'發生錯誤2')
             print(e)
+            traceback.print_exc()
             self.updateGameLabel(u'發生錯誤2 : ' + self.base.getTime("Microseconds"))
             with open(f'logs/{self.title}_{self.gameTitle}_{self.i_sport_type}_{self.i_oSport}_error.log', 'a+', encoding='utf-8') as log:
                 log.write(traceback.format_exc())
@@ -150,6 +152,12 @@ class KuGame:
 
             newHtml = self.base.getHtml("div.gameListAll_scroll")
             oNewGameData = self.tools.getGameTime(self.base, newHtml)
+            data = parse(newHtml, self.i_sport_type, self.i_oSport, live=('滾球' in self.gameTitle))
+            if self.globData['is_test'] != "TRUE":
+                if self.connection.is_closed or self.channel.is_closed:
+                    self.connection, self.channel = init_session('amqp://GTR:565p@rtmcq.nba1688.net:5672/')
+                if data:
+                    upload_data(self.channel, data, self.i_sport_type)
             iChange = 0
             for oGameKey in oNewGameData:
                 if oGameKey not in oGameData:
@@ -259,8 +267,9 @@ class KuGame:
                     self.updateGameLabel(u'點回遊戲 : ' + self.base.getTime("Microseconds"))
                     self.base.driver.find_element_by_xpath('//div[@id="' + self.btn + '"]').click()
                     self.base.sleep(5)
-                    self.base.driver.execute_script(
-                        "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
+                    if self.i_sport_type != '53':
+                        self.base.driver.execute_script(
+                            "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
                     self.base.sleep(1)
                 except Exception:
                     self.base.sleep(2)
