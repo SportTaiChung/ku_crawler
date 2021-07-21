@@ -775,8 +775,7 @@ def read_mapping(sport_id):
     if sport_name:
         today = datetime.now()
         date_str = today.strftime('%Y%m%d')
-        yesterday_date_str = (today - timedelta(days=3)).strftime('%Y%m%d')
-        # if today.hour < 3 and os.path.exists(f'mapping/{sport_name}_gameTime_{yesterday_date_str}.txt'):
+        yesterday_date_str = (today - timedelta(days=1)).strftime('%Y%m%d')
         if os.path.exists(f'mapping/{sport_name}_gameTime_{yesterday_date_str}.txt'):
             with open(f'mapping/{sport_name}_gameTime_{yesterday_date_str}.txt', encoding='utf-8') as game_time_data:
                 for line in game_time_data:
