@@ -103,7 +103,11 @@ class KuGame:
 
             print(u"類型")
             self.updateGameLabel(u'類型' + self.base.getTime("Microseconds"))
-            if self.i_sport_type != '53':
+            if (self.gameIndex == "-1"):
+                btn = self.btn.replace('btn', ' ')
+                btn = btn.lower()
+                self.base.driver.execute_script("Menu.ChangeSport(this, '" + btn + "', " + self.i_sport_type + ")")
+            else:
                 self.base.driver.execute_script(
                     "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
             self.base.sleep(1)
@@ -289,6 +293,8 @@ class KuGame:
     def checkBtnExist(self):
         # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
         # 全場btnSC足球Menu.ChangeKGroup(this, '11', 1)
+        if self.gameIndex == '-1':
+            return True
         isExist = True
         key = self.gameType + self.btn + self.title + "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ")"
         isOpen = self.base.getWinregKey(key)
