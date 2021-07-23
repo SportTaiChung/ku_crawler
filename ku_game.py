@@ -144,6 +144,18 @@ class KuGame:
                           oGameKey + "=>" + self.base.json_encode(oGameData[oGameKey]), 'mapping')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
             # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds"))
+            try:
+                self.updateGameLabel(u'點選我的最愛 : ' + self.base.getTime("Microseconds"))
+                self.base.driver.find_element_by_xpath('//div[@id="btnFV"]').click()
+                self.base.sleep(5)
+                self.updateGameLabel(u'點回遊戲 : ' + self.base.getTime("Microseconds"))
+                self.base.driver.find_element_by_xpath('//div[@id="' + self.btn + '"]').click()
+                self.base.sleep(5)
+                self.base.driver.execute_script(
+                    "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
+                self.base.sleep(5)
+            except Exception:
+                self.base.sleep(2)
             self.base.driver.execute_script("Outer.ChangeSort(Args.SortTime)")
             self.tools.closeScroll(self.base.driver)
 
