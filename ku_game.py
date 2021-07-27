@@ -279,16 +279,18 @@ class KuGame:
                 try:
                     self.updateGameLabel(u'點選我的最愛 : ' + self.base.getTime("Microseconds"))
                     self.base.driver.find_element_by_xpath('//div[@id="btnFV"]').click()
-                    self.base.sleep(5)
+                    self.base.sleep(10)
                     self.updateGameLabel(u'點回遊戲 : ' + self.base.getTime("Microseconds"))
                     self.base.driver.find_element_by_xpath('//div[@id="' + self.btn + '"]').click()
-                    self.base.sleep(5)
+                    self.base.sleep(10)
                     if self.i_sport_type != '53':
                         self.base.driver.execute_script(
                             "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
                     self.base.sleep(1)
                 except Exception:
-                    self.base.sleep(2)
+                    self.base.driver.execute_script("location.reload();")
+                    self.base.sleep(1)
+                    return False
 
     def checkBtnExist(self):
         # print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 檢查項目是否存在")
