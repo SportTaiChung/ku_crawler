@@ -76,8 +76,10 @@ class KuTools:
                     rt_font = rt.find('font').text
                 GLInTBox_Name = tr.find("li", class_="GLInTBox_Name")
                 aGLInTBox_nameT = GLInTBox_Name.find_all("div", class_="GLInTBox_nameT")
-                homeTeam = aGLInTBox_nameT[0].find('font').text
-                awayTeam = aGLInTBox_nameT[1].find('font').text
+                homeTeam_names = aGLInTBox_nameT[0].find_all('font')
+                homeTeam = '/'.join([n.text for n in homeTeam_names])
+                awayTeam_names = aGLInTBox_nameT[1].find_all('font')
+                awayTeam = '/'.join([n.text for n in awayTeam_names])
                 oGameData[homeTeam + "|" + awayTeam] = {
                     # 'rel': rel,
                     'date': st_span,

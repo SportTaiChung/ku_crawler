@@ -157,9 +157,9 @@ class KuGame:
                 self.base.sleep(5)
                 self.base.driver.execute_script(
                     "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ");")
-                self.base.sleep(5)
+                self.base.sleep(60)
             except Exception:
-                self.base.sleep(2)
+                self.base.sleep(60)
             self.base.driver.execute_script("Outer.ChangeSort(Args.SortTime)")
             self.tools.closeScroll(self.base.driver)
 
