@@ -4,6 +4,7 @@ from enum import Enum
 
 class Source(Enum):
     TX = 'TX'
+    KU = 'KU'
 
 
 class Site(Enum):
@@ -77,6 +78,8 @@ class Ku:
     class Mapping:
         sport_id_name = {
             '11': '足球',
+            '51': '冠軍聯賽',
+            '52': '五大聯賽',
             '53': '奧運會',
             '12': '籃球',
             '13': '棒球',
@@ -93,6 +96,8 @@ class Ku:
         }
         sport_game_class = {
             '11': 'soccer',
+            '51': 'soccer',
+            '52': 'soccer',
             '53': 'soccer',
             '12': 'basketball',
             '13': 'baseball',
@@ -111,29 +116,31 @@ class Ku:
         @staticmethod
         def get_exchange_name(sport_type_id):
             sport_type_id_exchange_mapping = {
-                '11': 'TX_SC',
-                '53': 'TX_SC',
-                '12': 'TX_BK',
-                '13': 'TX_BS',
-                '14': 'TX_TN',
-                '15': 'TX_HC',
-                '16': 'TX_BK',
-                '17': 'TX_BK',
-                '18': 'TX_ES',
-                '19': 'TX_FB',
-                '20': 'TX_BK',
-                '21': 'TX_BK',
-                '22': 'TX_BK',
-                '23': 'TX_BK'
+                '11': 'KU_SC',
+                '51': 'KU_SC',
+                '52': 'KU_SC',
+                '53': 'KU_SC',
+                '12': 'KU_BK',
+                '13': 'KU_BS',
+                '14': 'KU_TN',
+                '15': 'KU_HC',
+                '16': 'KU_BK',
+                '17': 'KU_BK',
+                '18': 'KU_ES',
+                '19': 'KU_FB',
+                '20': 'KU_BK',
+                '21': 'KU_BK',
+                '22': 'KU_BK',
+                '23': 'KU_BK'
             }
-            return sport_type_id_exchange_mapping.get(sport_type_id, 'TX_BK')
+            return sport_type_id_exchange_mapping.get(sport_type_id, 'KU_BK')
 
         @staticmethod
         def get_game_type(sport_type, game_type_id, half=False, live=False):
             game_type = Period.FULL if not live else Period.LIVE_FULL
             if sport_type is GameType.soccer:
-                if game_type_id == 0:
-                    game_type = Period.FULL
+                if game_type_id in (0, 99, -1):
+                    game_type = Period.FULL if not half else Period.FIRST_HALF
                 elif game_type_id == 1:
                     if live:
                         game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF
@@ -165,8 +172,8 @@ class Ku:
                     else:
                         game_type = Period.HALF_FULL_SCORE
             elif sport_type is GameType.basketball:
-                if game_type_id == 0:
-                    game_type = Period.FULL
+                if game_type_id in (0, 99, -1):
+                    game_type = Period.FULL if not half else Period.FIRST_HALF
                 elif game_type_id == 1:
                     if live:
                         game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF
@@ -181,7 +188,7 @@ class Ku:
                     game_type = Period.SECOND_HALF
             elif sport_type is GameType.baseball:
                 if game_type_id == 0:
-                    game_type = Period.FULL
+                    game_type = Period.FULL if not half else Period.FIRST_HALF
                 elif game_type_id == 1:
                     if live:
                         game_type = Period.LIVE_FULL if not half else Period.LIVE_FIRST_HALF

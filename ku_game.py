@@ -34,6 +34,7 @@ class KuGame:
 
         self.connection = None
         self.channel = None
+        self._upload_status = True
 
     def test(self):
         print(self.title + " : test")
@@ -41,7 +42,7 @@ class KuGame:
     # globData['is_test']
     def start(self):
         if self.globData['is_test'] != "TRUE":
-            self.connection, self.channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
+            self.connection, self.channel = init_session('amqp://program:0d597e7dc7c6fa0064dbcbc2a6239fe59c31e06c784d989b1dc75665711c6436@35.73.114.219:5672/%2F?heartbeat=60&connection_attempts=3&retry_delay=3&socket_timeout=3')
         while int(float(self.base.getTime('Ticks'))) <= int(float(self.globData['timestamp_end'])):
 
             # noinspection PyBroadException
@@ -98,8 +99,8 @@ class KuGame:
             self.base.sleep(1)
 
             print(self.title)
-            if not self.checkBtnExist():
-                return True
+            # if not self.checkBtnExist():
+            #     return True
 
             print(u"類型")
             self.updateGameLabel(u'類型' + self.base.getTime("Microseconds"))
@@ -163,17 +164,19 @@ class KuGame:
             self.base.driver.execute_script("Outer.ChangeSort(Args.SortTime)")
             self.tools.closeScroll(self.base.driver)
 
-            if not self.checkBtnExist():
-                return True
+            # if not self.checkBtnExist():
+            #     return True
 
             newHtml = self.base.getHtml("div.gameListAll_scroll")
             oNewGameData = self.tools.getGameTime(self.base, newHtml)
             data = parse(newHtml, self.i_sport_type, self.i_oSport, live=('滾球' in self.gameTitle))
             if self.globData['is_test'] != "TRUE":
-                if self.connection.is_closed or self.channel.is_closed:
-                    self.connection, self.channel = init_session('amqp://GTR:565p@rtmcq.nba1688.net:5672/')
+                if self.connection.is_closed or self.channel.is_closed or not self._upload_status:
+                    if self.connection.is_open:
+                        self.connection.close()
+                    self.connection, self.channel = init_session('amqp://program:0d597e7dc7c6fa0064dbcbc2a6239fe59c31e06c784d989b1dc75665711c6436@35.73.114.219:5672/%2F?heartbeat=60&connection_attempts=3&retry_delay=3&socket_timeout=3')
                 if data:
-                    upload_data(self.channel, data, self.i_sport_type)
+                    self._upload_status = upload_data(self.channel, data, self.i_sport_type)
             iChange = 0
             for oGameKey in oNewGameData:
                 if oGameKey not in oGameData:
@@ -213,8 +216,8 @@ class KuGame:
                 end_close_scroll = perf_counter()
                 stat['摺疊賽事'] = round(end_close_scroll - start_time, 3)
 
-                if not self.checkBtnExist():
-                    return True
+                # if not self.checkBtnExist():
+                #     return True
                 end_check_btn = perf_counter()
                 stat['檢查按鈕'] = round(end_check_btn - end_close_scroll, 3)
 
@@ -245,10 +248,12 @@ class KuGame:
                 stat['更新面板'] = round(end_update_gui - end_parsing, 3)
 
                 if self.globData['is_test'] != "TRUE":
-                    if self.connection.is_closed or self.channel.is_closed:
-                        self.connection, self.channel = init_session('amqp://GTR:565p@rmq.nba1688.net:5673/')
+                    if self.connection.is_closed or self.channel.is_closed or not self._upload_status:
+                        if self.connection.is_open:
+                            self.connection.close()
+                        self.connection, self.channel = init_session('amqp://program:0d597e7dc7c6fa0064dbcbc2a6239fe59c31e06c784d989b1dc75665711c6436@35.73.114.219:5672/%2F?heartbeat=60&connection_attempts=3&retry_delay=3&socket_timeout=3')
                     if data:
-                        upload_data(self.channel, data, self.i_sport_type)
+                        self._upload_status = upload_data(self.channel, data, self.i_sport_type)
                 with open(f'{self.title}_{self.gameTitle}.log', 'w', encoding='utf-8') as dump:
                     dump.write(text_format.MessageToString(data, as_utf8=True))
                 end_upload = perf_counter()
@@ -264,8 +269,8 @@ class KuGame:
             # noinspection PyBroadException
             try:
 
-                if not self.checkBtnExist():
-                    return False
+                # if not self.checkBtnExist():
+                #     return False
 
                 self.base.driver.find_element_by_xpath('//div[@class="gameList"]')
                 self.base.sleep(0.1)
@@ -300,12 +305,11 @@ class KuGame:
         isExist = True
         key = self.gameType + self.btn + self.title + "Menu.ChangeKGroup(this, '" + self.i_sport_type + "', " + self.gameIndex + ")"
         isOpen = self.base.getWinregKey(key)
-        while (isOpen != "1"):
-            self.updateGameLabel(u'無列表選項、等待十秒後重試 : ' + self.base.getTime("Microseconds"))
-            print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 無列表選項、等待十秒後重試")
-            self.base.sleep(10)
-            isOpen = self.base.getWinregKey(key)
-            isExist = False
+        self.updateGameLabel(u'無列表選項、等待十秒後重試 : ' + self.base.getTime("Microseconds"))
+        print(str(self.tkIndex) + " - " + self.base.getTime("Microseconds") + u" - 無列表選項、等待十秒後重試")
+        self.base.sleep(10)
+        isOpen = self.base.getWinregKey(key)
+        isExist = False
         if not isExist:
             print(u'列表開啟、重新導入')
             self.updateGameLabel(u'列表開啟、重新導入 : ' + self.base.getTime("Microseconds"))

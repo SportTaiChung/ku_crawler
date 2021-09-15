@@ -26,26 +26,7 @@ class KuTools:
         index = 0
         isRe = False
         try:
-            for gameListOne in gameList:
-                className = gameListOne.get_attribute('class')
-                rel = gameListOne.find_element_by_xpath('..').get_attribute('rel')
-                index = index + 1
-                if index == 1:
-                    if className == 'btn_GLT off' or className == 'btn_GLT notBind off':
-                        print(str(index) + " - " + className + " - " + rel + u' 開啟')
-                        gameListOne.click()
-                        time.sleep(0.1)
-                        isRe = True
-                    else:
-                        time.sleep(0.01)
-                else:
-                    if className != 'btn_GLT off' and className != 'btn_GLT notBind off':
-                        print(str(index) + " - " + className + " - " + rel + u' 關閉')
-                        gameListOne.click()
-                        time.sleep(0.1)
-                        isRe = True
-                    else:
-                        time.sleep(0.01)
+            driver.execute_script('Array(...document.querySelectorAll("ul.btn_GLT:not(.off) > li.icon_gameList_list")).slice(1).forEach(e=>e.click());')
         except Exception as e:
             print(e)
             time.sleep(0.1)
