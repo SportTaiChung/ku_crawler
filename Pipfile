@@ -17,6 +17,7 @@ protobuf = "*"
 pika = "*"
 pyinstaller = "*"
 pyyaml = "*"
+requests = "*"
 
 [requires]
 python_version = "3.7"

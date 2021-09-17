@@ -8,6 +8,7 @@ import json
 from json.decoder import JSONDecodeError
 from itertools import product
 import traceback
+import requests
 from pyquery import PyQuery as pq
 from google.protobuf import text_format
 import APHDC_pb2 as spec
@@ -118,8 +119,19 @@ def parse(html, sport_id, game_type_id, live=False):
                     event_rel_id = new_event_rel_id
 
                 if not event_info:
-                    print('找不到相關開賽時間:', f'{event_id}={home_team}|{away_team}')
-                    continue
+                    sport_type_id = Ku.Mapping.get_sport_type_id(sport_id, league_name)
+                    event_time = search_event_time(home_team, away_team, sport_type_id)
+                    print(f'找到開賽時間({home_team}, {away_team}): "{event_time}"')
+                    with open('debug.log', mode='a+', encoding='utf-8') as f:
+                        f.write(f'找到開賽時間({home_team}, {away_team}): "{event_time}"\n')
+                    if not event_time:
+                        print('找不到相關開賽時間:', f'{event_id}={home_team}|{away_team}')
+                        continue
+                    else:
+                        date_str = event_time.split(' ')[0]
+                        sport_name = Ku.Mapping.sport_id_name.get(sport_id)
+                        with open(f'mapping/{sport_name}_gameTime_{date_str.replace("-", "")}.txt', encoding='utf-8', mode='a') as game_time_data:
+                            game_time_data.write(f'{home_team}|{away_team}=>{{"date": "{date_str[5:]}", "time": "{event_time[11:16]}", "home": "{home_team}", "away": "{away_team}"}}\n')
                 event_time = f'2021-{event_info["date"]} {event_info["time"]}:00'
                 game_class = game_class_convert(sport_type, league_name)
                 # live_time = re.sub(r'第\d節', '?q' live_time)
@@ -911,10 +923,31 @@ def game_class_convert(game_type, league):
     return game_class.value
 
 
+def search_event_time(home_team, away_team, sport_type_id):
+    event_time = ''
+    try:
+        home_team = re.sub(r'-女$', '(女)', home_team)
+        away_team = re.sub(r'-女$', '(女)', away_team)
+        resp = requests.post('http://52.198.102.230:56786/multiSourceKanban',
+                          data={
+                              'date': datetime.now().strftime('%Y-%m-%d'),
+                              'category': sport_type_id,
+                              'type': '7'
+                          })
+        if resp.ok:
+            for event in resp.json().values():
+                if home_team == event['hTeamName'] and away_team == event['aTeamName']:
+                    event_time = event['gameTime']
+                    break
+    except Exception:
+        traceback.print_exc()
+    return event_time
+
+
 if __name__ == '__main__':
     start_time = perf_counter()
-    with open('europe_champian.html', encoding='utf-8') as f:
-        result = parse(f.read(), '51', 1, live=True)
+    with open('sc_live_full.html', encoding='utf-8') as f:
+        result = parse(f.read(), '11', 1, live=True)
         end_time = perf_counter()
         print(len(result.aphdc), end_time - start_time)
         print(text_format.MessageToString(result, as_utf8=True))

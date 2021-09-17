@@ -134,6 +134,14 @@ class Ku:
                 '23': 'KU_BK'
             }
             return sport_type_id_exchange_mapping.get(sport_type_id, 'KU_BK')
+        
+        @staticmethod
+        def get_sport_type_id(sport_id, league_name):
+            if sport_id in ('11', '51', '52'):
+                if league_name == '歐洲足協 - 冠軍聯賽':
+                    return '20'
+                return '10'
+            return '14'
 
         @staticmethod
         def get_game_type(sport_type, game_type_id, half=False, live=False):
