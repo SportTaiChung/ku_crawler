@@ -2,7 +2,7 @@
 import time
 import json
 import os
-import winreg
+import traceback
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -13,28 +13,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from bs4 import BeautifulSoup
 
 
-# -*- coding: utf-8 -*-
 class Base:
     # 建構式
     def __init__(self):
         self.driver = None
         self.wait = None
-        self.page_load_timeout = "30"
-        self.keyWinreg = r'Software\Being\LEO'
-
-    # 設定公用變數
-    def setValue(self, _aData):
-        # noinspection PyBroadException
-        try:
-            for key in _aData:
-                if key == "driver":
-                    self.driver = _aData['driver']
-                if key == "wait":
-                    self.wait = _aData['wait']
-                if key == "page_load_timeout":
-                    self.page_load_timeout = _aData['page_load_timeout']
-        except Exception:
-            time.sleep(0.1)
+        self.page_load_timeout = 180
 
     # 等待(秒)
     def sleep(self, sec):
@@ -110,12 +94,27 @@ class Base:
         try:
             print(u'初始化瀏覽器')
             options = webdriver.ChromeOptions()
-            options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            options.add_argument('--disable-background-timer-throttling')
             options.add_argument('--log-level=3')
-            options.add_argument('–no-sandbox')
+            # options.add_argument('--lang=zh-TW')
+            options.add_argument('--start-maximized')
+            # 不載入圖片,提升速度
+            options.add_argument('blink-settings=imagesEnabled=false')
+            # options.add_argument('--max-gum-fps="30"')
+            # options.add_argument('--disable-gpu-vsync')
+            # 無痕模式
+            options.add_argument('--incognito')
             # options.add_argument('auto-open-devtools-for-tabs')
+            prefs = {  
+                'profile.default_content_setting_values' :  {  
+                    'notifications' : 2  
+                }  
+            }  
+            options.add_experimental_option('prefs',prefs)
+            options.add_experimental_option('useAutomationExtension', False)
+            options.add_experimental_option('excludeSwitches', ['enable-logging', 'load-extension', 'enable-automation'])
 
-            self.driver = webdriver.Chrome(chrome_options=options, executable_path='file/chromedriver.exe')
+            self.driver = webdriver.Chrome(chrome_options=options, executable_path='chromedriver.exe')
             self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
                 "source": """
                     Object.defineProperty(navigator, 'webdriver', {
@@ -123,32 +122,16 @@ class Base:
                     })
                 """
             })
-            _sec = int(self.page_load_timeout)
-            self.driver.implicitly_wait(_sec)
-            self.driver.set_page_load_timeout(_sec)
-            self.driver.maximize_window()
-            self.wait = WebDriverWait(self.driver, _sec)
-        except Exception as e:
-            print(u'初始化瀏覽器失敗')
-            print(e)
-            return False
-
-    def defaultNewDriverBase(self, _driver):
-        # noinspection PyBroadException
-        try:
-            print(_driver.capabilities['goog:chromeOptions']['debuggerAddress'])
-            options = webdriver.ChromeOptions()
-            options.add_experimental_option("debuggerAddress",
-                                            _driver.capabilities['goog:chromeOptions']['debuggerAddress'])
-            self.driver = webdriver.Chrome(chrome_options=options, executable_path='file/chromedriver.exe')
-            _sec = int(self.page_load_timeout)
-            self.wait = WebDriverWait(self.driver, _sec)
-            return True
+            # 關閉瀏覽器快取
+            # self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled":True})
+            self.driver.implicitly_wait(30)
+            self.driver.set_page_load_timeout(self.page_load_timeout)
+            self.wait = WebDriverWait(self.driver, self.page_load_timeout)
         except Exception:
-            return False
+            print('初始化瀏覽器失敗')
+            traceback.print_exc()
 
     def log(self, file_name, _type, text, log_type):
-
         # noinspection PyBroadException
         try:
             if log_type == 'logs':
@@ -188,7 +171,7 @@ class Base:
             f.write(text + '\n')
             f.close()
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             time.sleep(0.1)
 
     def checkPath(self, path):
@@ -201,54 +184,3 @@ class Base:
     def getHtml(self, _css):
         ele_scroll = self.waitBy("CSS", _css)
         return ele_scroll.get_attribute('innerHTML')
-
-    def setWinregKey(self, subKey, value):
-        # noinspection PyBroadException
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
-        except Exception:
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, self.keyWinreg)
-        winreg.SetValueEx(key, subKey, 0, winreg.REG_SZ, value)
-        winreg.CloseKey(key)
-
-    def getWinregKey(self, subKey):
-
-        return self.getWinregKeyByFile(subKey)
-        # noinspection PyBroadException
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
-            value, _type = winreg.QueryValueEx(key, subKey)
-        except Exception:
-            winreg.CreateKey(winreg.HKEY_CURRENT_USER, self.keyWinreg)
-            value = ""
-        return str(value)
-
-    def getWinregKeyByFile(self, subKey):
-        _value = ""
-        # noinspection PyBroadException
-        try:
-            txt_url = 'logs\\gameOpen.txt'
-            f = open(txt_url, 'r')
-            sGameOpen = f.read()
-            f.close()
-            oGameOpen = self.json_decode(sGameOpen)
-            if subKey in oGameOpen['data']:
-                _value = str(oGameOpen['data'][subKey])
-        except Exception:
-            time.sleep(0.01)
-        return _value
-
-    def resetWinregKeyValue(self):
-        # noinspection PyBroadException
-        try:
-            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.keyWinreg, 0, winreg.KEY_ALL_ACCESS)
-            for key in range(3000):
-                print(key)
-                try:
-                    show_sub_keys = winreg.EnumValue(reg_key, key)
-                    winreg.SetValueEx(reg_key, show_sub_keys[0], 0, winreg.REG_SZ, '0')
-                except Exception:
-                    break
-        except Exception:
-            return False
-        return True

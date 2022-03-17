@@ -7,7 +7,12 @@ verify_ssl = true
 yapf = "*"
 py-spy = "*"
 pprofile = "*"
+pyinstaller = "*"
 pyinstrument = "*"
+pycodestyle = "*"
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
 
 [packages]
 selenium = "*"
@@ -15,9 +20,10 @@ bs4 = "*"
 pyquery = "*"
 protobuf = "*"
 pika = "*"
-pyinstaller = "*"
 pyyaml = "*"
 requests = "*"
+python-telegram-bot = "*"
+psutil = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"

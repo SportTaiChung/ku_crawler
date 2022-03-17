@@ -1,164 +1,134 @@
 # -*- coding: utf-8 -*-
-import time
-import yaml
+import argparse
+import subprocess
+import os
+import platform
 import multiprocessing as mp
-import base as base
-import ku as game  # 開始遊戲流程 - 目前只有一個不做選項、直接調用
-import tkLabel as tk
-import ku_game_open
+import signal
+from time import time, sleep
+import traceback
+import yaml
+import base
 import ku_game
-# 警告修正
-from warnings import simplefilter
-from urllib3.exceptions import InsecureRequestWarning
-
-simplefilter('ignore', InsecureRequestWarning)
-config_name = "config.ini"
-globData = {
-    'url': "",
-    'ku_url': "",
-    'account': "",
-    'password': "",
-    'page_index': '',
-    'time_close': 8 * 60 * 60,  # 秒(8H)
-    'is_test': 'False',
-    'yaml_name': "sport_run",
-}
-oOpenList = {}
-processList = []
+from ku_tools import KuTools
 
 
 # 設定帳號相關信息
-def defaultData():
-    global globData
-    print(__name__ + "defaultData")
-
-    with open(config_name, 'r') as f:
-        content_list = f.read().splitlines()
-
-    for tContent in content_list:
-        # print(tContent)
-        tContentArr = tContent.split('|')
-        if tContentArr[0] == "account":
-            globData['account'] = tContentArr[1]
-        elif tContentArr[0] == "password":
-            globData['password'] = tContentArr[1]
-        elif tContentArr[0] == "url":
-            globData['url'] = tContentArr[1]
-        elif tContentArr[0] == "ku_url":
-            globData['ku_url'] = tContentArr[1]
-        elif tContentArr[0] == "time_close":
-            globData['time_close'] = tContentArr[1]
-        elif tContentArr[0] == "is_test":
-            globData['is_test'] = tContentArr[1]
-        elif tContentArr[0] == "sport_type":
-            globData['sport_type'] = tContentArr[1]
-        elif tContentArr[0] == "yaml_name":
-            globData['yaml_name'] = tContentArr[1]
-    globData['a_sport_type'] = globData['sport_type'].split(',')
-    globData['timestamp_start'] = int(float(main_base.getTime('Ticks')))
-    globData['timestamp_end'] = globData['timestamp_start'] + int(globData['time_close'])
+def load_config(args):
+    print('載入設定檔')
+    with open(args.config, encoding='utf-8') as config_file:
+        config = yaml.safe_load(config_file)
+    config['sport_config'] = args.sport_config
+    config['debug'] = config['debug'] or args.debug
+    return config
 
 
-# 登入
-def doLogin():
-    global globData
-    print(__name__ + "doLogin")
-    # print(globData)
+def main_login(config):
     main_base.defaultDriverBase()
-    print(u"網址:" + globData['url'])
-    main_base.driver.get(globData['url'])
+    print(f'開啟KU首頁: {config["home_url"]}')
+    main_base.driver.get(config['home_url'])
     main_base.sleep(3)
-
-    print(u"帳號:" + globData['account'])
+    print("帳號:" + config['account'])
+    print(f'登入帳號: {config["account"]}，密碼: {config["password"]}')
     ele_account = main_base.waitBy("CSS", "#txtUser")
-    ele_account.send_keys(globData['account'])
-    main_base.sleep(0.5)
-
-    print(u"密碼:" + globData['password'])
     ele_password = main_base.waitBy("CSS", "#txtPassword")
-    ele_password.send_keys(globData['password'])
-    main_base.sleep(0.5)
-
-    print(u"登入")
+    ele_account.send_keys(config['account'])
+    ele_password.send_keys(config['password'])
     main_base.driver.execute_script("UserPassIsEmpty();")
     main_base.sleep(5)
-
-    main_base.driver.get(globData['ku_url'])
+    print(f'跳轉進入KU賽事頁面: {config["ku_redirect_url"]}')
+    main_base.driver.get(config['ku_redirect_url'])
     main_base.sleep(3)
-    aCookies = main_base.driver.get_cookies()
-    globData['aCookies'] = aCookies
-
+    cookies = main_base.driver.get_cookies()
+    config['cookies'] = cookies
+    print(f'取得登入cookie: {cookies}')
     current_url = main_base.driver.current_url
     pos = current_url.find('bbview')  # 從字串開頭往後找
-
-    globData['ku_url_start'] = current_url[0:pos] + 'bbview'
-    globData['ku_url_end'] = current_url[0:pos] + 'bbview/Games.aspx'
-
-
-# 設定場次資料
-def setGame():
-    global oOpenList
-    print(__name__ + "setGame")
-    with open(globData['yaml_name'] + '.yaml', 'r', encoding='utf8') as f:
-        oSportList = yaml.load(f, Loader=yaml.FullLoader)
-
-    oOpenList = {}
-    oOpenList[0] = {'title': '監測場次開關', 'game': {'title': ''}, }
-    tk_index = 1
-    for i_sport_type in globData['a_sport_type']:
-        if i_sport_type in oSportList:
-            for i_oSport in oSportList[i_sport_type]['list']:
-                tk_index = tk_index + 1
-                oOpenList[tk_index] = {
-                    'i_sport_type': i_sport_type,
-                    'i_oSport': i_oSport,
-                    'title': oSportList[i_sport_type]['title'],
-                    'btn': oSportList[i_sport_type]['btn'],
-                    'game': oSportList[i_sport_type]['list'][i_oSport],
-                }
+    config['ku_url_start'] = f'{current_url[0:pos]}bbview'
+    config['ku_url_end'] = f'{current_url[0:pos]}bbview/Games.aspx'
 
 
-def startGame():
-    global processList
-    print(__name__ + "startGame")
-    # 設定流程框
-    # print(u"開啟流程框")
-    tkLabel = None
-    if (globData['is_test'] == "TRUE"):
-        tkLabel = tk.tkLabel(oOpenList, globData)
-        p_tkLabel = mp.Process(target=tkLabel.start)
-        processList.append(p_tkLabel)
+def setup_crawlers(config):
+    crawler_configs = []
+    print('解析球種設定與初始化')
+    with open(config['sport_config'], encoding='utf8') as sport_config_file:
+        sport_config = yaml.safe_load(sport_config_file)
 
-    print(u"開啟比賽視窗")
-    for oOpenKey in oOpenList:
-        oOpen = oOpenList[oOpenKey]
-        if oOpenKey == 0:  # 監測場次開啟關閉
-            page = ku_game_open.kuGameOpen(globData, None, oOpenKey)
-        else:
-            page = ku_game.KuGame(globData, None, oOpenKey, oOpen['i_sport_type'], oOpen['i_oSport'], oOpen['title'],
-                                  oOpen['btn'], oOpen['game'])
-        p = mp.Process(target=page.start)
-        processList.append(p)
+    for sport_id in config['crawl_sport_ids']:
+        if sport_id in sport_config:
+            for game_type_id in sport_config[sport_id]['list']:
+                crawler_configs.append({
+                    'i_sport_type': sport_id,
+                    'i_oSport': game_type_id,
+                    'title': sport_config[sport_id]['title'],
+                    'btn': sport_config[sport_id]['btn'],
+                    'game': sport_config[sport_id]['list'][game_type_id],
+                })
+    return crawler_configs
 
 
-# ------------------------
+def init_crawlers(config, crawler_configs, shared_dict):
+    print('初始化爬蟲')
+    crawlers = []
+    for crawler_id, crawler_config in enumerate(crawler_configs, start=1):
+        task = ku_game.KuGame(config, crawler_id,
+                              crawler_config['i_sport_type'],
+                              crawler_config['i_oSport'],
+                              crawler_config['title'], crawler_config['btn'],
+                              crawler_config['game'], shared_dict)
+        crawlers.append(task)
+    return crawlers
 
-# ------------------------
+
+def parse_args():
+    parser = argparse.ArgumentParser('KU盤口爬蟲')
+    parser.add_argument('-c', '--config', default='config.yml', help='設定檔路徑')
+    parser.add_argument('-s',
+                        '--sport-config',
+                        default='sport.yml',
+                        help='爬蟲設定檔路徑')
+    parser.add_argument('-d', '--debug', action='store_true', help='除錯模式')
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
     mp.freeze_support()
+    args = parse_args()
     main_base = base.Base()
-    defaultData()
-    doLogin()
-    setGame()
-    startGame()
-    print(u'開始抓吧 - ' + str(len(processList)))
-    # 開始工作
-    for p in processList:
-        p.start()
-        main_base.sleep(10)
+    config = load_config(args)
+    manager = mp.Manager()
+    shared_dict = manager.dict()
+    main_login(config)
+    crawler_configs = setup_crawlers(config)
+    crawlers = init_crawlers(config, crawler_configs, shared_dict)
+    print(f'啟動KU個球種玩法盤口爬蟲({len(crawlers)})')
+    for crawler in crawlers:
+        crawler.start()
+        main_base.sleep(config.get('crawler_init_interval') + 5)
 
-    print(u'主流程結束')
+    print('已完成所有爬蟲啟動')
     main_base.driver.quit()
-
-    for p in processList:
-        p.join()
+    while KuTools.is_working_time(config['crawler_uptime_ranges']):
+        try:
+            output = subprocess.run(['powershell.exe', '-Command', '(Get-Process -Name Chrome | measure-object -Line).Lines'], capture_output=True, check=True)
+            chrome_process_num = int((output.stdout or '0').strip())
+            if chrome_process_num > 150:
+                os.system('taskkill.exe /IM chrome.exe /F')
+                os.system('taskkill.exe /IM chromedriver.exe /F')
+                os.system('taskkill.exe /IM leo_main.exe /F')
+        except Exception:
+            traceback.print_exc()
+        for crawler_id, crawler in enumerate(crawlers, start=1):
+            if time() - shared_dict[crawler_id]['update_timestamp'] > 300:
+                for pid in shared_dict[crawler_id]['pids']:
+                    if platform.system() == 'Windows':
+                        os.system(f'taskkill.exe /F /pid {pid}')
+                    else:
+                        os.kill(pid, signal.SIGKILL)
+                new_crawler = ku_game.KuGame(config, crawler_id, crawler.i_sport_type,
+                        crawler.i_oSport, crawler.title, crawler.btn,
+                        crawler.game, shared_dict)
+                crawlers[crawler_id - 1] = new_crawler
+                new_crawler.start()
+        sleep(30)
+    manager.shutdown()

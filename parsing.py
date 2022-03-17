@@ -12,13 +12,15 @@ import requests
 from pyquery import PyQuery as pq
 from google.protobuf import text_format
 import APHDC_pb2 as spec
-from constants import Ku, GameType, Period
+from constants import Ku, GameType, Period, EXCLUDED_LEAGUES
 
-def parse(html, sport_id, game_type_id, live=False):
+def parse(html, sport_id, game_type_id, live=False, ignore_team_hash=None, tha_event_map=None, machine_id=None):
     sport_type_name = Ku.Mapping.sport_game_class.get(sport_id, 'other')
     sport_type = GameType[sport_type_name]
-    mapping = read_mapping(sport_id) if live else {}
+    mapping = tha_event_map if (live and tha_event_map) else {}
     data = spec.ApHdcArr()
+    if not html:
+        return data
     doc = pq(html)
     event_list_doc = doc('.gameList')
     event_rel_id = ''
@@ -27,9 +29,12 @@ def parse(html, sport_id, game_type_id, live=False):
     home_score = '0'
     away_score = '0'
     olympic = (sport_id == '53')
+    event_time_map = {}
+    if not ignore_team_hash:
+        ignore_team_hash = set()
     for event_doc in event_list_doc:
-        league_name = event_doc.cssselect('.btn_GLT li:nth-child(2)')[0].text
-        if '分鐘' in league_name:
+        league_name = re.sub(r'\s', '', event_doc.cssselect('.btn_GLT li:nth-child(2)')[0].text)
+        if sport_id in ('11', '51', '52') and live and EXCLUDED_LEAGUES.search(league_name):
             continue
         if olympic:
             if '排球' in league_name:
@@ -56,55 +61,64 @@ def parse(html, sport_id, game_type_id, live=False):
             try:
                 cells = row.cssselect('td')
                 header = None
-                if (sport_type is GameType.soccer and game_type_id == 4) or (sport_type is GameType.eSport and game_type_id == 2):
+                if (sport_type is GameType.soccer and game_type_id == 4) or (sport_type is GameType.eSport and game_type_id == 2) or (sport_type is GameType.basketball and game_type_id == 4):
                     odds_table = event_doc.cssselect('table')[0]
                     new_event_rel_id = event_id = odds_table.attrib['rel'] + odds_table.attrib.get('st')
                     header = event_doc.cssselect('th.GLInBoxT')[0]
                     teams = header.cssselect('font[rel]')
-                    home_team = teams[0].text
-                    away_team = teams[1].text
+                    home_team = re.sub(r'\s', '', teams[0].text)
+                    if sport_type is GameType.basketball and game_type_id == 4:
+                        away_element = event_doc.cssselect('table:nth-child(2) th.GLInBoxT:nth-child(1) font[rel]')
+                        away_team = re.sub(r'\s', '', get_value(away_element, ''))
+                    else:
+                        away_team = re.sub(r'\s', '', re.sub(r'\s', '', teams[1].text))
                     if live:
                         date = header.cssselect('span.GLInBoxT_time > span')[0].text
                         date_time = header.cssselect('span.GLInBoxT_time > font')[0].text
                         live_time = f'{date} {date_time or ""}'.replace("'", '').replace('半場', '').replace('LIVE', '上 0').strip()
-                    home_score_element = cells[0].cssselect('span.GLInBoxT_score > span:nth-child(2)')
+                    home_score_element = cells[0].cssselect('.GLInTBox_Score > div:nth-child(1)')
                     home_score = home_score_element[0].text.strip() if home_score_element else '0'
-                    away_score_element = cells[0].cssselect('span.GLInTBox_Score > span:nth-child(3)')
+                    away_score_element = cells[0].cssselect('.GLInTBox_Score > div:nth-child(2)')
+                    # away_score_element = cells[0].cssselect('span.GLInTBox_Score > span:nth-child(3)')
                     away_score = away_score_element[0].text.strip() if away_score_element else '0'
                 else:
                     new_event_rel_id = row.attrib['rel']
                     event_id = row.attrib['rel'] + row.attrib.get('st')
                     if len(cells[0].cssselect('div.GLInTBox_nameT[rel] font')) >= 2:
                         if len(cells[0].cssselect('div.GLInTBox_nameT[rel] font')) == 2:
-                            home_team = cells[0].cssselect('div.GLInTBox_nameT[rel] font')[0].text
-                            away_team = cells[0].cssselect('div.GLInTBox_nameT[rel] font')[1].text
+                            home_team = re.sub(r'\s', '', cells[0].cssselect('div.GLInTBox_nameT[rel] font')[0].text)
+                            away_team = re.sub(r'\s', '', cells[0].cssselect('div.GLInTBox_nameT[rel] font')[1].text)
                             if live and cells[0].cssselect('div.GLInTBox_redCard'):
-                                home_red = cells[0].cssselect('div.GLInTBox_redCard')[0].text.strip()
-                                away_red = cells[0].cssselect('div.GLInTBox_redCard')[1].text.strip()
+                                home_red = get_value(cells[0].cssselect('div.GLInTBox_redCard'), '0')
+                                away_red = get_value(cells[0].cssselect('div.GLInTBox_redCard'), '0', index=1)
                         else:
-                            home_team = f'{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[0].text}/{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[1].text}'
-                            away_team = f'{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[2].text}/{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[3].text}'
+                            home_team = re.sub(r'\s', '', f'{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[0].text}/{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[1].text}')
+                            away_team = re.sub(r'\s', '', f'{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[2].text}/{cells[0].cssselect("div.GLInTBox_nameT[rel] font")[3].text}')
                     elif (sport_type is GameType.basketball and game_type_id == 4) or (sport_type is GameType.baseball and game_type_id == 5):
-                        home_team = away_team = cells[0].cssselect('div.GLInTBox_nameT > font')[0].text
+                        home_team = away_team = re.sub(r'\s', '', cells[0].cssselect('div.GLInTBox_nameT > font')[0].text)
                     else:
-                        home_team = cells[0].cssselect('li:nth-child(2) font')[0].text
-                        away_team = cells[0].cssselect('li:nth-child(2) font')[1].text
+                        home_team = re.sub(r'\s', '', cells[0].cssselect('li:nth-child(2) font')[0].text)
+                        away_team = re.sub(r'\s', '', cells[0].cssselect('li:nth-child(2) font')[1].text)
 
                 if live:
-                    event_info = mapping.get(f'{home_team}|{away_team}')
+                    event_info = mapping.get(row.attrib['rel'])
                 # 多盤口
                 if new_event_rel_id != event_rel_id:
                     if header and not live:
                         date_str, time_str = event_doc.cssselect('span.GLInBoxT_time')[0].text.split(' ')
                         event_info = {
-                            'date': date_str,
-                            'time': time_str
+                            'id': row.attrib['rel'],
+                            'home': home_team,
+                            'away': away_team,
+                            'game_time': f'{date_str} {time_str}'
                         }
                         live_time = ''
                     elif not live:
                         event_info = {
-                            'date': row.cssselect('div.GLInTBox_row.st > span')[0].text,
-                            'time': row.cssselect('div.GLInTBox_row.rt > font')[0].text
+                            'id': row.attrib['rel'],
+                            'home': home_team,
+                            'away': away_team,
+                            'game_time': f'{row.cssselect("div.GLInTBox_row.st > span")[0].text} {row.cssselect("div.GLInTBox_row.rt > font")[0].text}'
                         }
                         live_time = ''
                     if not header and live:
@@ -113,31 +127,63 @@ def parse(html, sport_id, game_type_id, live=False):
                             date_time = cells[0].cssselect('.rt font')[0].text
                         live_time = f'{date} {date_time or ""}'.replace("'", '').replace('半場', '').replace('LIVE', '上 0').strip()
                         home_score_element = cells[0].cssselect('.GLInTBox_Score > div:nth-child(1)')
-                        home_score = home_score_element[0].text.strip() if home_score_element else '0'
+                        home_score = (home_score_element[0].text or '').strip() if home_score_element else '0'
                         away_score_element = cells[0].cssselect('.GLInTBox_Score > div:nth-child(2)')
-                        away_score = away_score_element[0].text.strip() if away_score_element else '0'
+                        away_score = (away_score_element[0].text or '').strip() if away_score_element else '0'
                     event_rel_id = new_event_rel_id
 
                 if not event_info:
+                    # if row.attrib['rel'] in ignore_team_hash:
+                    #     continue
                     sport_type_id = Ku.Mapping.get_sport_type_id(sport_id, league_name)
-                    event_time = search_event_time(home_team, away_team, sport_type_id)
-                    print(f'找到開賽時間({home_team}, {away_team}): "{event_time}"')
-                    with open('debug.log', mode='a+', encoding='utf-8') as f:
-                        f.write(f'找到開賽時間({home_team}, {away_team}): "{event_time}"\n')
-                    if not event_time:
-                        print('找不到相關開賽時間:', f'{event_id}={home_team}|{away_team}')
-                        continue
+                    event_time = None
+                    if sport_id in event_time_map:
+                        event_map = event_time_map[sport_id]
+                        event_time = search_event_time(home_team, away_team, event_map)
                     else:
+                        event_datacenter = query_sport_event_time(sport_type_id)
+                        event_time_map[sport_id] = event_datacenter
+                        event_time = search_event_time(home_team, away_team, event_datacenter)
+                    if event_time:
                         date_str = event_time.split(' ')[0]
                         sport_name = Ku.Mapping.sport_id_name.get(sport_id)
+                        event_info = {
+                            'id': row.attrib['rel'],
+                            'home': home_team,
+                            'away': away_team,
+                            'game_time': f'{date_str[5:]} {event_time[11:16]}'
+                        }
                         with open(f'mapping/{sport_name}_gameTime_{date_str.replace("-", "")}.txt', encoding='utf-8', mode='a') as game_time_data:
-                            game_time_data.write(f'{home_team}|{away_team}=>{{"date": "{date_str[5:]}", "time": "{event_time[11:16]}", "home": "{home_team}", "away": "{away_team}"}}\n')
-                event_time = f'2021-{event_info["date"]} {event_info["time"]}:00'
+                            json.dump(event_info,
+                                      game_time_data,
+                                      ensure_ascii=False)
+                            game_time_data.write('\n')
+                    else:
+                        # ignore_team_hash.add(row.attrib['rel'])
+                        # print('找不到相關開賽時間:', f'{event_id}={home_team}|{away_team}')
+                        sport_name = Ku.Mapping.sport_id_name.get(sport_id)
+                        event_info = {
+                            'id': row.attrib['rel'],
+                            'home': home_team,
+                            'away': away_team,
+                            'game_time': f'{datetime.now():%m-%d %H:00}'
+                        }
+                        with open(f'mapping/{sport_name}_gameTime_{datetime.now():%Y%m%d}.txt', encoding='utf-8', mode='a') as game_time_data:
+                            json.dump(event_info,
+                                      game_time_data,
+                                      ensure_ascii=False)
+                            game_time_data.write('\n')
+
+                today = datetime.today()
+                year = today.year
+                if today.month == 12 and today.month != int(event_info["game_time"].split('-')[0]):
+                    year += 1
+                event_time = f'{year}-{event_info["game_time"]}:00'
                 game_class = game_class_convert(sport_type, league_name)
                 # live_time = re.sub(r'第\d節', '?q' live_time)
                 event = spec.ApHdc(source='KU',
                                     game_class=game_class,
-                                    ip='ku_python',
+                                    ip=f'ku_python-{machine_id}',
                                     event_time=event_time,
                                     source_updatetime=datetime.now().strftime(
                                         '%Y-%m-%d %H:%M:%S.%f')[:-3],
@@ -160,10 +206,14 @@ def parse(html, sport_id, game_type_id, live=False):
                     event_full.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, live=live).value
                     # 全場讓分
                     advanced_team = 'home' if get_value(cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
-                    zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
+                    zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text
                     zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                    home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                    away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                    if zf_line:
+                        home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                    else:
+                        home_zf_odds = '0'
+                        away_zf_odds = '0'
                     event_full.twZF.CopyFrom(
                         spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                     odds=home_zf_odds),
@@ -172,8 +222,8 @@ def parse(html, sport_id, game_type_id, live=False):
                     # 全場大小
                     if not olympic or (olympic and sport_id not in ('17', '21')):
                         ds_line = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '')
-                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_line:
                             ds_line = '0'
                             ds_over_odds = '0'
@@ -183,38 +233,38 @@ def parse(html, sport_id, game_type_id, live=False):
                         event_full.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                     if sport_type is GameType.soccer or (sport_type is GameType.baseball and not live):
                         # 全場獨贏
-                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[3].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_full.draw = de_draw_odds
                         event_full.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                     elif sport_type is GameType.basketball:
                         # 全場單雙
-                        odd_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_full.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                     elif sport_type is GameType.hockey:
                         # 全場單雙
-                        odd_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_full.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                     elif sport_type is GameType.tennis:
                         event_full.information.league += '-局數獲勝者'
                     elif sport_type is GameType.otherbasketball and sport_id in ('16', '21'):
                         event_full.information.league += '-局數獲勝者'
-                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[3].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_full.draw = de_draw_odds
                         event_full.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                     elif sport_type is GameType.otherbasketball and sport_id in ('17', '21'):
                         event_full.information.league += '-局數獲勝者'
-                        de_home_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[2].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_full.draw = de_draw_odds
                         event_full.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
 
@@ -223,18 +273,22 @@ def parse(html, sport_id, game_type_id, live=False):
                     event_1st.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, half=True, live=live).value
                     if sport_type is GameType.tennis:
                         # 上半場獨贏
-                        de_1st_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_1st_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_1st_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_1st_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[3].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_1st_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_1st_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_1st.draw = de_1st_draw_odds
                         event_1st.de.CopyFrom(spec.onetwo(home=de_1st_home_odds, away=de_1st_away_odds))
                         # 上半場讓分
                         advanced_team_1st = 'home' if get_value(cells[4].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_1st_line = cells[4].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[4].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_1st_home_line, zf_1st_away_line = compute_zf_line(zf_1st_line, advanced_team_1st)
-                        home_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        if zf_1st_line:
+                            home_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_1st_odds = '0'
+                            away_zf_1st_odds = '0'
                         event_1st.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_1st_home_line,
                                                         odds=home_zf_1st_odds),
@@ -246,14 +300,22 @@ def parse(html, sport_id, game_type_id, live=False):
                             advanced_team_1st = 'home' if get_value(cells[3].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                             zf_1st_line = cells[3].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[3].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                             zf_1st_home_line, zf_1st_away_line = compute_zf_line(zf_1st_line, advanced_team_1st)
-                            home_zf_1st_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                            away_zf_1st_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                            if zf_1st_line:
+                                home_zf_1st_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                                away_zf_1st_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                            else:
+                                home_zf_1st_odds = '0'
+                                away_zf_1st_odds = '0'
                         else:
                             advanced_team_1st = 'home' if get_value(cells[4].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                             zf_1st_line = cells[4].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[4].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                             zf_1st_home_line, zf_1st_away_line = compute_zf_line(zf_1st_line, advanced_team_1st)
-                            home_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                            away_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                            if zf_1st_line:
+                                home_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                                away_zf_1st_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                            else:
+                                home_zf_1st_odds = '0'
+                                away_zf_1st_odds = '0'
                         if sport_id not in ('16', '17', '21'):
                             event_1st.twZF.CopyFrom(
                                 spec.twZF(homeZF=spec.typeZF(line=zf_1st_home_line,
@@ -262,17 +324,17 @@ def parse(html, sport_id, game_type_id, live=False):
                                                             odds=away_zf_1st_odds)))
                         # 上半場大小
                         if sport_type == GameType.baseball and live or (olympic and sport_id == '16'):
-                            ds_1st_line = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '0').strip()
-                            ds_1st_over_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                            ds_1st_under_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                            ds_1st_line = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '0')
+                            ds_1st_over_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            ds_1st_under_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         elif olympic and sport_id in ('17', '21'):
-                            ds_1st_line = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '0').strip()
-                            ds_1st_over_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                            ds_1st_under_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                            ds_1st_line = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '0')
+                            ds_1st_over_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            ds_1st_under_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         else:
-                            ds_1st_line = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '0').strip()
-                            ds_1st_over_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                            ds_1st_under_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                            ds_1st_line = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '0')
+                            ds_1st_over_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            ds_1st_under_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_1st_line:
                             ds_1st_line = '0'
                             ds_1st_over_odds = '0'
@@ -282,16 +344,16 @@ def parse(html, sport_id, game_type_id, live=False):
                         event_1st.twDS.CopyFrom(spec.typeDS(line=ds_1st_line, over=ds_1st_over_odds, under=ds_1st_under_odds))
                     if sport_type is GameType.soccer or (sport_type is GameType.baseball and not live):
                         # 上半場獨贏
-                        de_1st_home_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_1st_away_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_1st_home_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_1st_away_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[6].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_1st_draw_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_1st_draw_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_1st.draw = de_1st_draw_odds
                         event_1st.de.CopyFrom(spec.onetwo(home=de_1st_home_odds, away=de_1st_away_odds))
                     elif sport_type is GameType.basketball:
                         # 全場單雙
-                        odd_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_1st.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                     elif sport_type is GameType.tennis:
                         event_1st.information.league += '-盤數獲勝者'
@@ -300,8 +362,8 @@ def parse(html, sport_id, game_type_id, live=False):
                     elif sport_type is GameType.otherbasketball and sport_id in ('16', '17', '21'):
                         event_1st.information.league += '-總分獲勝者'
                         # 上半場單雙
-                        odd_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_1st.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
 
 
@@ -324,8 +386,12 @@ def parse(html, sport_id, game_type_id, live=False):
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
-                        away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_full_corner.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -343,28 +409,33 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_full_corner.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 全場獨贏
-                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[3].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_full_corner.draw = de_draw_odds
                         event_full_corner.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                         # 全場單雙
-                        odd_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_full_corner.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                         data.aphdc.append(event_full_corner)
                     elif sport_type is GameType.basketball:
                         event_bk_set = spec.ApHdc()
                         event_bk_set.CopyFrom(event)
+                        event_bk_set.information.league += '-單節'
                         event_bk_set.game_id = f'{event_id}10'
                         event_bk_set.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, live=live).value
                         # 全場讓分
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
-                        away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_bk_set.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -382,21 +453,26 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_bk_set.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 全場單雙
-                        odd_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_bk_set.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                         data.aphdc.append(event_bk_set)
                     elif sport_type is GameType.baseball:
                         event_13set = spec.ApHdc()
                         event_13set.CopyFrom(event)
+                        event_13set.information.league += '(1~3局)投注'
                         event_13set.game_id = f'{event_id}13'
                         event_13set.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, live=live).value
                         # 全場讓分
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_13set.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -404,8 +480,8 @@ def parse(html, sport_id, game_type_id, live=False):
                                                         odds=away_zf_odds)))
                         # 全場大小
                         ds_line = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '')
-                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_line:
                             ds_line = '0'
                             ds_over_odds = '0'
@@ -415,16 +491,16 @@ def parse(html, sport_id, game_type_id, live=False):
                         event_13set.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 一輸
                         advanced_team = 'home' if get_value(cells[3].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
-                        home_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        home_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        away_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_13set.esre.CopyFrom(
                             spec.Esre(let=spec.whichTeam.home if advanced_team
                                       else spec.whichTeam.away,
                                       home=home_zf_odds,
                                       away=away_zf_odds))
                         # 全場單雙
-                        odd_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        odd_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        even_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         event_13set.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                         data.aphdc.append(reverseTeam(event_13set))
                     elif sport_type is GameType.tennis:
@@ -433,11 +509,16 @@ def parse(html, sport_id, game_type_id, live=False):
                         event_tennis_set.game_id = event_id
                         event_tennis_set.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, live=live).value
                         # 全場讓分
-                        advanced_team = 'home' if get_value(cells[1].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
+                        # advanced_team = 'home' if get_value(cells[1].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
+                        advanced_team = 'home' if get_value(cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
-                        away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_tennis_set.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -455,10 +536,10 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_tennis_set.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 全場獨贏
-                        de_home_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[1].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_tennis_set.draw = de_draw_odds
                         event_tennis_set.information.league += f'-{cells[1].cssselect("div:nth-child(1)")[0].text or ""}'
                         data.aphdc.append(event_tennis_set)
@@ -471,8 +552,12 @@ def parse(html, sport_id, game_type_id, live=False):
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
-                        away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_hk_set.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -491,10 +576,10 @@ def parse(html, sport_id, game_type_id, live=False):
                         event_hk_set.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
 
                         # 全場獨贏
-                        de_home_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[1].cssselect('ul:nth-child(3) > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(3)'), '0')
                             event_hk_set.draw = de_draw_odds
                         event_hk_set.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                         event_hk_set.information.league += f'-{cells[1].cssselect("div:nth-child(1)")[0].text or ""}'
@@ -516,8 +601,12 @@ def parse(html, sport_id, game_type_id, live=False):
                                 advanced_team = 'home' if get_value(cells[0].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                                 zf_line = '0'
                                 zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                                home_zf_odds = get_value(cells[0].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
-                                away_zf_odds = get_value(cells[0].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                                if zf_line:
+                                    home_zf_odds = get_value(cells[0].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                                    away_zf_odds = get_value(cells[0].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                                else:
+                                    home_zf_odds = '0'
+                                    away_zf_odds = '0'
                                 event_esport_set.twZF.CopyFrom(
                                     spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                                 odds=home_zf_odds),
@@ -550,8 +639,12 @@ def parse(html, sport_id, game_type_id, live=False):
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul:nth-child(1) > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
-                        away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul:nth-child(1) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_full_15min.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -569,24 +662,29 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_full_15min.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 全場獨贏
-                        de_home_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[1].cssselect('ul:nth-child(3) > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[1].cssselect('ul:nth-child(3) > li.btn_GLOdds:nth-child(3)'), '0')
                             event_full_15min.draw = de_draw_odds
                         event_full_15min.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                         data.aphdc.append(event_full_15min)
                     elif sport_type is GameType.baseball:
                         event_17set = spec.ApHdc()
                         event_17set.CopyFrom(event)
+                        event_17set.information.league += '(1~7局)投注'
                         event_17set.game_id = f'{event_id}17'
                         event_17set.game_type = Ku.Mapping.get_game_type(sport_type, game_type_id, live=live).value
                         # 全場讓分
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_17set.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -594,8 +692,8 @@ def parse(html, sport_id, game_type_id, live=False):
                                                         odds=away_zf_odds)))
                         # 全場大小
                         ds_line = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '')
-                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_line:
                             ds_line = '0'
                             ds_over_odds = '0'
@@ -604,18 +702,18 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_17set.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 一輸
-                        advanced_team = 'home' if get_value(cells[3].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
-                        home_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
-                        event_17set.esre.CopyFrom(
-                            spec.Esre(let=spec.whichTeam.home if advanced_team
-                                      else spec.whichTeam.away,
-                                      home=home_zf_odds,
-                                      away=away_zf_odds))
+                        # advanced_team = 'home' if get_value(cells[3].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
+                        # home_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        # away_zf_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        # event_17set.esre.CopyFrom(
+                        #     spec.Esre(let=spec.whichTeam.home if advanced_team
+                        #               else spec.whichTeam.away,
+                        #               home=home_zf_odds,
+                        #               away=away_zf_odds))
                         # 全場單雙
-                        odd_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        even_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
-                        event_17set.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
+                        # odd_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        # even_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        # event_17set.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                         data.aphdc.append(reverseTeam(event_17set))
                 elif game_type_id == 4:
                     # 波膽
@@ -658,8 +756,8 @@ def parse(html, sport_id, game_type_id, live=False):
                                 ds_line += '+0'
                             event_total_goal.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                             # 全場單雙
-                            odd_odds = get_value(odds.cssselect('ul:nth-child(2) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                            even_odds = get_value(odds.cssselect('ul:nth-child(2) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                            odd_odds = get_value(odds.cssselect('ul:nth-child(2) > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            even_odds = get_value(odds.cssselect('ul:nth-child(2) > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                             event_total_goal.sd.CopyFrom(spec.onetwo(home=odd_odds, away=even_odds))
                             event_total_period = spec.ApHdc()
                             event_total_period.CopyFrom(event_total_goal)
@@ -678,8 +776,12 @@ def parse(html, sport_id, game_type_id, live=False):
                         advanced_team = 'home' if get_value(cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[1].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[1].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        if zf_line:
+                            home_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_first_set_goal.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -687,8 +789,8 @@ def parse(html, sport_id, game_type_id, live=False):
                                                         odds=away_zf_odds)))
                         # 得分大小
                         ds_line = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '')
-                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        ds_over_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        ds_under_odds = get_value(cells[2].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_line:
                             ds_line = '0'
                             ds_over_odds = '0'
@@ -697,10 +799,10 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_first_set_goal.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 得分獨贏
-                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[3].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[3].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_first_set_goal.draw = de_draw_odds
                         event_first_set_goal.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                         data.aphdc.append(reverseTeam(event_first_set_goal))
@@ -714,8 +816,12 @@ def parse(html, sport_id, game_type_id, live=False):
                         advanced_team = 'home' if get_value(cells[4].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L'), '') else 'away'
                         zf_line = cells[4].cssselect('ul.GLOdds > li:nth-child(1) > div.GLOdds_L')[0].text or cells[4].cssselect('ul.GLOdds > li:nth-child(2) > div.GLOdds_L')[0].text or '0'
                         zf_home_line, zf_away_line = compute_zf_line(zf_line, advanced_team)
-                        home_zf_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        away_zf_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        if zf_line:
+                            home_zf_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                            away_zf_odds = get_value(cells[4].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
+                        else:
+                            home_zf_odds = '0'
+                            away_zf_odds = '0'
                         event_first_set_hit.twZF.CopyFrom(
                             spec.twZF(homeZF=spec.typeZF(line=zf_home_line,
                                                         odds=home_zf_odds),
@@ -723,8 +829,8 @@ def parse(html, sport_id, game_type_id, live=False):
                                                         odds=away_zf_odds)))
                         # 安打大小
                         ds_line = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '')
-                        ds_over_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        ds_under_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        ds_over_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        ds_under_odds = get_value(cells[5].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_line:
                             ds_line = '0'
                             ds_over_odds = '0'
@@ -733,10 +839,10 @@ def parse(html, sport_id, game_type_id, live=False):
                             ds_line += '+0'
                         event_first_set_hit.twDS.CopyFrom(spec.typeDS(line=ds_line, over=ds_over_odds, under=ds_under_odds))
                         # 安打獨贏
-                        de_home_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0').strip()
-                        de_away_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0').strip()
+                        de_home_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1)'), '0')
+                        de_away_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2)'), '0')
                         if cells[6].cssselect('ul.GLOdds > li:nth-child(3)'):
-                            de_draw_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0').strip()
+                            de_draw_odds = get_value(cells[6].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(3)'), '0')
                             event_first_set_hit.draw = de_draw_odds
                         event_first_set_hit.de.CopyFrom(spec.onetwo(home=de_home_odds, away=de_away_odds))
                         data.aphdc.append(reverseTeam(event_first_set_hit))
@@ -786,8 +892,8 @@ def parse(html, sport_id, game_type_id, live=False):
                         # 總得分
                         # 大小
                         ds_line = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_L'), '')
-                        ds_over_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0').strip()
-                        ds_under_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0').strip()
+                        ds_over_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(1) > div.GLOdds_R'), '0')
+                        ds_under_odds = get_value(cells[1].cssselect('ul.GLOdds > li.btn_GLOdds:nth-child(2) > div.GLOdds_R'), '0')
                         if not ds_line:
                             ds_line = '0'
                             ds_over_odds = '0'
@@ -818,13 +924,16 @@ def parse(html, sport_id, game_type_id, live=False):
                         event_half_full.multi = json.dumps(half_full_score)
                         data.aphdc.append(event_half_full)
 
-            except Exception as ex:
+            except Exception:
                 with open(f'logs/{sport_type.value}_{game_type_id}_解析錯誤.log', 'a+', encoding='utf-8') as log:
+                    log.write(datetime.now().isoformat())
                     log.write(traceback.format_exc())
                     log.write('\n')
     return data
 
 def compute_zf_line(line, advanced_team):
+    if not line:
+        line = '0'
     if line and line[-2:] == '0.5' and '/' not in line:
         line = f'{line[:-2]}-100'
     elif not re.search(r'[+./-]', line):
@@ -837,9 +946,12 @@ def compute_zf_line(line, advanced_team):
         zf_away_line = f'-{line}'
     return zf_home_line, zf_away_line
 
-def get_value(element, default):
-    if element:
-        return element[0].text or default
+def get_value(element, default, index=0):
+    try:
+        if element:
+            return (element[index].text or default).strip()
+    except (IndexError, TypeError):
+        pass
     return default
 
 def reverseTeam(event):
@@ -863,30 +975,24 @@ def read_mapping(sport_id):
         today = datetime.now()
         date_str = today.strftime('%Y%m%d')
         yesterday_date_str = (today - timedelta(days=1)).strftime('%Y%m%d')
-        if os.path.exists(f'mapping/{sport_name}_gameTime_{yesterday_date_str}.txt'):
+        if os.path.exists(f'mapping/{sport_name}_gameTime_{yesterday_date_str}.txt') and today.hour < 8:
             with open(f'mapping/{sport_name}_gameTime_{yesterday_date_str}.txt', encoding='utf-8') as game_time_data:
                 for line in game_time_data:
                     if line:
-                        parts = line.split('=>')
-                        if len(parts) == 2:
-                            try:
-                                team_key = parts[0]
-                                event_mapping = json.loads(parts[1])
-                                mapping[team_key] = event_mapping
-                            except JSONDecodeError:
-                                print('mapping parsing error:', line)
+                        try:
+                            data = json.loads(line)
+                            mapping[data['id']] = data
+                        except JSONDecodeError:
+                            print('mapping parsing error:', line)
         if os.path.exists(f'mapping/{sport_name}_gameTime_{date_str}.txt'):
             with open(f'mapping/{sport_name}_gameTime_{date_str}.txt', encoding='utf-8') as game_time_data:
                 for line in game_time_data:
                     if line:
-                        parts = line.split('=>')
-                        if len(parts) == 2:
-                            try:
-                                team_key = parts[0]
-                                event_mapping = json.loads(parts[1])
-                                mapping[team_key] = event_mapping
-                            except JSONDecodeError:
-                                print('mapping parsing error:', line)
+                        try:
+                            data = json.loads(line)
+                            mapping[data['id']] = data
+                        except JSONDecodeError:
+                            print('mapping parsing error:', line)
         return mapping
 
 def game_class_convert(game_type, league):
@@ -914,7 +1020,7 @@ def game_class_convert(game_type, league):
         game_class = GameType.tennis
     elif game_type is GameType.eSport:
         game_class = GameType.eSport
-    elif ('歐洲冠軍' in league or '歐洲盃' in league) and '外圍賽' not in league:
+    elif re.search(r'(歐洲冠軍|歐足聯歐洲聯賽|歐洲盃|美洲國家盃\(在巴西\)|亞足聯冠軍)', league) and '外圍賽' not in league:
         game_class = GameType.UCL
     elif game_type is GameType.soccer:
         game_class = GameType.soccer
@@ -923,31 +1029,38 @@ def game_class_convert(game_type, league):
     return game_class.value
 
 
-def search_event_time(home_team, away_team, sport_type_id):
-    event_time = ''
+def query_sport_event_time(sport_type_id):
     try:
-        home_team = re.sub(r'-女$', '(女)', home_team)
-        away_team = re.sub(r'-女$', '(女)', away_team)
         resp = requests.post('http://52.198.102.230:56786/multiSourceKanban',
                           data={
                               'date': datetime.now().strftime('%Y-%m-%d'),
                               'category': sport_type_id,
                               'type': '7'
-                          })
+                          }, timeout=5)
         if resp.ok:
-            for event in resp.json().values():
-                if home_team == event['hTeamName'] and away_team == event['aTeamName']:
-                    event_time = event['gameTime']
-                    break
+            event_info = resp.json()
+            event_time_map = {}
+            for event in event_info.values():
+                home_team_datacenter = re.sub(r'\s', '', event['hTeamName'])
+                away_team_datacenter = re.sub(r'\s', '', event['aTeamName'])
+                event_time_map[f'{home_team_datacenter}{away_team_datacenter}'] = event
+            return event_time_map
     except Exception:
         traceback.print_exc()
-    return event_time
+    return {}
+
+
+def search_event_time(home_team, away_team, event_map):
+    home_team = re.sub(r'-女\b', '(女)', home_team)
+    away_team = re.sub(r'-女\b', '(女)', away_team)
+    event_info = event_map.get(f'{home_team}{away_team}') or event_map.get(f'{away_team}{home_team}') or {}
+    return event_info.get('gameTime')
 
 
 if __name__ == '__main__':
     start_time = perf_counter()
-    with open('sc_live_full.html', encoding='utf-8') as f:
-        result = parse(f.read(), '11', 1, live=True)
+    with open('ku_sc_full.html', encoding='utf-8') as f:
+        result = parse(f.read(), '11', 0, live=False)
         end_time = perf_counter()
         print(len(result.aphdc), end_time - start_time)
         print(text_format.MessageToString(result, as_utf8=True))
