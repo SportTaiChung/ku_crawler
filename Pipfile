@@ -5,14 +5,12 @@ verify_ssl = true
 
 [dev-packages]
 yapf = "*"
-py-spy = "*"
-pprofile = "*"
 pyinstaller = "*"
-pyinstrument = "*"
 pycodestyle = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
+austin-python = "*"
 
 [packages]
 selenium = "*"

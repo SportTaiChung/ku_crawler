@@ -7,6 +7,7 @@ from time import perf_counter
 from datetime import datetime
 import traceback
 from google.protobuf import text_format
+from selenium.webdriver.common.by import By
 from selenium.common.exceptions import JavascriptException, UnexpectedAlertPresentException, NoSuchElementException, WebDriverException
 import psutil
 import base
@@ -34,6 +35,12 @@ class KuGame(Process):
         self.gameType = self.gameTitle.split("-")[0]
         self.gameIndex = str(_game['gameIndex'])
         self.name = f'{self.title}_{self.gameTitle}'
+        self.parser_config = {
+            'machine_id': self._config['machine_id'],
+            'sport_id': self.i_sport_type,
+            'game_type_id': self.i_oSport,
+            'live': '滾球' in self.gameTitle
+        }
         self._shared_dict = shared_dict
 
         self.connection = None
@@ -81,41 +88,17 @@ class KuGame(Process):
 
     def odd(self):
         try:
-            print('選擇爬取時間範圍')
-            if '今日' in self.gameTitle:
-                print("今日")
-                ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
-            elif '早盤' in self.gameTitle:
-                print("早盤")
-                ele_btnPagemode = self.base.waitBy("CSS", "#modeZP")
-            else:
-                print("滾球")
-                ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
-
-            print('跳轉到時段標籤')
-            try:
-                ele_btnPagemode.click()
-                self.base.sleep(1)
-            except Exception:
-                traceback.print_exc()
-                print('無法切換球種時間類型')
-            print(self.name, '切換玩法類型')
-            if (self.gameIndex == "-1"):
-                btn = self.btn.replace('btn', ' ')
-                btn = btn.lower()
-                self.base.driver.execute_script(f'Menu.ChangeSport(this, "{btn}", "{self.i_sport_type}");')
-            else:
-                self.base.driver.execute_script(f'Menu.ChangeKGroup(this, "{self.i_sport_type}", "{self.gameIndex}");')
+            self.switch_label_refresh()
             self.base.sleep(1)
             self.check_and_wait_for_events()
             print('抓取')
-            oldHtml = self.base.getHtml("div.gameListAll_scroll")
+            old_dom = self.base.get_dom("div.gameListAll_scroll")
             self.inject_scroll_updater()
             self.heartbeat()
             if self.i_oSport == 0 or self.i_oSport == 99:
-                self.gameTime(oldHtml)
+                self.gameTime(old_dom)
             else:
-                self.gameOdds(oldHtml)
+                self.gameOdds()
         except (JavascriptException, UnexpectedAlertPresentException, NoSuchElementException) as ex:
             print(f'{self.name}: 盤口處理發生錯誤: {ex}')
             traceback.print_exc()
@@ -126,8 +109,8 @@ class KuGame(Process):
                 log.write('\n')
             self.refresh_page(force=True)
 
-    def gameTime(self, oldHtml):
-        oGameData = self.tools.getGameTime(oldHtml)
+    def gameTime(self, old_dom):
+        oGameData = self.tools.getGameTime(old_dom)
         print('寫入比賽場次')
         for event_info in oGameData.values():
             self.base.log(f'{self.title}_gameTime', '', self.base.json_encode(event_info), 'mapping')
@@ -153,9 +136,10 @@ class KuGame(Process):
                 self.refresh_page()
                 last_refresh_time = time.time()
 
-            newHtml = self.base.getHtml("div.gameListAll_scroll")
-            oNewGameData = self.tools.getGameTime(newHtml)
-            data = parse(newHtml, self.i_sport_type, self.i_oSport, live=('滾球' in self.gameTitle), machine_id=self._config['machine_id'])
+            dom = self.base.get_dom("div.gameListAll_scroll")
+            oNewGameData = self.tools.getGameTime(dom)
+
+            data = parse(dom, self.parser_config)
             if not self._config['debug']:
                 if self.connection.is_closed or self.channel.is_closed or not self._upload_status:
                     if self.connection.is_open:
@@ -173,7 +157,7 @@ class KuGame(Process):
                 dump.write(text_format.MessageToString(data, as_utf8=True))
             self.base.sleep(1)
 
-    def gameOdds(self, oldHtml):
+    def gameOdds(self):
         print('開始抓取賽事盤口')
         stat = {}
         end_upload = perf_counter()
@@ -219,21 +203,18 @@ class KuGame(Process):
             end_check_btn = perf_counter()
             stat['檢查按鈕'] = round(end_check_btn - end_close_scroll, 3)
 
-            newHtml = self.base.getHtml("div.gameListAll_scroll")
+            dom = self.base.get_dom("div.gameListAll_scroll")
             end_get_html = perf_counter()
             stat['取得資料'] = round(end_get_html - end_check_btn, 3)
 
-            if newHtml == "":
+            if not dom('div:first'):
                 self.check_and_wait_for_events()
                 continue
             end_check_data = perf_counter()
             stat['檢查資料'] = round(end_check_data - end_get_html, 3)
-
-            data = parse(newHtml, self.i_sport_type, self.i_oSport, live=('滾球' in self.gameTitle), ignore_team_hash=ignore_team_hash, tha_event_map=mapping, machine_id=self._config["machine_id"])
+            data = parse(dom, self.parser_config, ignore_team_hash=ignore_team_hash, tha_event_map=mapping)
             end_parsing = perf_counter()
             stat['解析耗時'] = round(end_parsing - end_check_data, 3)
-            end_update_gui = perf_counter()
-            stat['更新面板'] = round(end_update_gui - end_parsing, 3)
             if not self._config['debug']:
                 if self.connection.is_closed or self.channel.is_closed or not self._upload_status:
                     if self.connection.is_open:
@@ -244,27 +225,34 @@ class KuGame(Process):
             with open(f'{self.name}.log', 'w', encoding='utf-8') as dump:
                 dump.write(text_format.MessageToString(data, as_utf8=True))
             end_upload = perf_counter()
-            stat['上傳耗時'] = round(end_upload - end_update_gui, 3)
+            stat['上傳耗時'] = round(end_upload - end_parsing, 3)
 
             self.base.sleep(0.1)
             stat['執行耗時'] = round(perf_counter() - start_time, 3)
-            print(f'{self.name}, 解析耗時={stat["解析耗時"]}， 爬取時間={stat["執行耗時"]}秒')
+            print(
+                f'{self.name}, 狀態檢查={round(end_check_btn - start_time, 3)} 取得資料={stat["取得資料"]} 解析耗時={stat["解析耗時"]}，上傳耗時={stat["上傳耗時"]} 爬取時間={stat["執行耗時"]}秒'
+            )
 
     def check_and_wait_for_events(self):
         while self.tools.is_working_time(self._config['crawler_uptime_ranges']):
             try:
                 self.heartbeat()
-                self.base.driver.find_element_by_xpath('//div[@class="gameList"]')
+                if self.i_sport_type != '53':
+                    self.base.driver.execute_script(f'Menu.ChangeKGroup(this, "{self.i_sport_type}", "{self.gameIndex}");')
+                self.base.sleep(30)
+                self.switch_label_refresh()
+                self.base.sleep(30)
+                self.base.driver.find_element(By.CSS_SELECTOR, 'div.gameList')
                 break
-            except Exception:
+            except (NoSuchElementException, JavascriptException, UnexpectedAlertPresentException):
                 print('無資料、等待五秒後重試')
                 self.base.sleep(5)
                 try:
                     print(f'{self.name} 點選我的最愛')
-                    self.base.driver.find_element_by_xpath('//div[@id="btnFV"]').click()
+                    self.base.driver.find_element(By.CSS_SELECTOR, 'div#btnFV').click()
                     self.base.sleep(5)
                     print(f'{self.name} 點回遊戲')
-                    self.base.driver.find_element_by_xpath(f'//div[@id="{self.btn}"]').click()
+                    self.base.driver.find_element(By.CSS_SELECTOR, f'div#{self.btn}').click()
                     self.base.sleep(5)
                     if self.i_sport_type != '53':
                         self.base.driver.execute_script(f'Menu.ChangeKGroup(this, "{self.i_sport_type}", "{self.gameIndex}");')
@@ -290,24 +278,17 @@ class KuGame(Process):
                 ) or ('早盤' in self.gameTitle and active_time_type_id !=
                       'modeZP') or ('滾球' in self.gameTitle
                                     and active_time_type_id != 'modeZD'):
-                if '今日' in self.gameTitle:
-                    ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
-                elif '早盤' in self.gameTitle:
-                    ele_btnPagemode = self.base.waitBy("CSS", "#modeZP")
-                else:
-                    ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
                 try:
-                    ele_btnPagemode.click()
-                    self.base.sleep(1)
+                    self.switch_label_refresh()
                 except Exception:
                     traceback.print_exc()
-                    print('無法切換球種時間類型')
-                return False
+                    print(self.name, '無法切換球種時間類型')
+                    return False
 
             match_menu_items = self.base.driver.execute_script(r'return ((document.querySelector(".SM_list li.on") || window).onclick || "").toString().match(/\d+/g) || [];')
             if not match_menu_items or len(match_menu_items) != 2:
                 match_menu_items = (self.i_sport_type, self.gameIndex)
-                print('無法抓取到目前球種玩法')
+                print(self.name, '無法抓取到目前球種玩法')
             sport_id, game_type_id = match_menu_items
             if self.i_sport_type != sport_id or self.gameIndex != game_type_id:
                 print(f'當前爬取非指定頁面，當前: ({sport_id}, {game_type_id})，目標: {self.name}_{self.i_sport_type}_{self.i_oSport} ({self.i_sport_type}, {self.gameIndex})')
@@ -319,12 +300,12 @@ class KuGame(Process):
                 match_menu_items = self.base.driver.execute_script(r'return ((document.querySelector(".SM_list li.on") || window).onclick || "").toString().match(/\d+/g) || [];')
                 if not match_menu_items or len(match_menu_items) != 2:
                     match_menu_items = (self.i_sport_type, self.gameIndex)
-                    print('無法抓取到目前球種玩法')
+                    print(self.name, '無法抓取到目前球種玩法')
                 sport_id, game_type_id = match_menu_items
                 if self.i_sport_type != sport_id or self.gameIndex != game_type_id:
                     print(f'無法切換到指定球種玩法，當前: ({sport_id}, {game_type_id})，目標: ({self.i_sport_type}, {self.gameIndex})')
                     return False
-                print(f'成功切換到指定球種玩法，當前: ({sport_id}, {game_type_id})')
+                print(f'{self.name} 成功切換到指定球種玩法，當前: ({sport_id}, {game_type_id})')
         except JavascriptException as ex:
             print(self.name, ex.msg)
             with open(f'logs/{self.name}_{self.i_sport_type}_{self.i_oSport}_error.log', 'a+', encoding='utf-8') as log:
@@ -373,14 +354,8 @@ class KuGame(Process):
             print(f'{self.name} {datetime.now().isoformat(sep=" ")} 強制刷新頁面')
             self.base.driver.refresh()
             self.base.sleep(3)
-            if '今日' in self.gameTitle:
-                ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
-            elif '早盤' in self.gameTitle:
-                ele_btnPagemode = self.base.waitBy("CSS", "#modeZP")
-            else:
-                ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
             try:
-                ele_btnPagemode.click()
+                self.switch_label_refresh()
                 self.base.sleep(1)
             except Exception:
                 traceback.print_exc()
@@ -452,6 +427,38 @@ class KuGame(Process):
                     break
         self.base.driver.execute_script(f'document.title = "{self.name}";')
         self.inject_scroll_updater()
+
+    def switch_label_refresh(self):
+        # 切換盤口時間羽球種刷新資料
+        try:
+            print(self.name, '選擇爬取時間範圍')
+            if '今日' in self.gameTitle:
+                print("今日")
+                ele_btnPagemode = self.base.waitBy("CSS", "#modeDS")
+            elif '早盤' in self.gameTitle:
+                print("早盤")
+                ele_btnPagemode = self.base.waitBy("CSS", "#modeZP")
+            else:
+                print("滾球")
+                ele_btnPagemode = self.base.waitBy("CSS", "#modeZD")
+
+            print(self.name, '跳轉到時段標籤')
+            try:
+                ele_btnPagemode.click()
+                self.base.sleep(1)
+            except Exception:
+                traceback.print_exc()
+                print(self.name, '無法切換球種時間類型')
+            print(self.name, '切換玩法類型')
+            if (self.gameIndex == "-1"):
+                btn = self.btn.replace('btn', ' ')
+                btn = btn.lower()
+                self.base.driver.execute_script(f'Menu.ChangeSport(this, "{btn}", "{self.i_sport_type}");')
+            else:
+                self.base.driver.execute_script(f'Menu.ChangeKGroup(this, "{self.i_sport_type}", "{self.gameIndex}");')
+        except (JavascriptException, NoSuchElementException, UnexpectedAlertPresentException) as ex:
+            print(self.name, ex.msg)
+
 
     def check_websocket_alive(self):
         alive = False

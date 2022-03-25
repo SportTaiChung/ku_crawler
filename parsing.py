@@ -14,15 +14,19 @@ from google.protobuf import text_format
 import APHDC_pb2 as spec
 from constants import Ku, GameType, Period, EXCLUDED_LEAGUES
 
-def parse(html, sport_id, game_type_id, live=False, ignore_team_hash=None, tha_event_map=None, machine_id=None):
+
+def parse(dom, parser_config, ignore_team_hash=None, tha_event_map=None):
+    machine_id = parser_config['machine_id']
+    sport_id = parser_config['sport_id']
+    game_type_id = parser_config['game_type_id']
+    live = parser_config['live']
     sport_type_name = Ku.Mapping.sport_game_class.get(sport_id, 'other')
     sport_type = GameType[sport_type_name]
     mapping = tha_event_map if (live and tha_event_map) else {}
     data = spec.ApHdcArr()
-    if not html:
+    if not dom('div:first'):
         return data
-    doc = pq(html)
-    event_list_doc = doc('.gameList')
+    event_list_doc = dom('.gameList')
     event_rel_id = ''
     date = ''
     date_time = ''

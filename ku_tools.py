@@ -63,9 +63,8 @@ class KuTools:
         except Exception:
             traceback.print_exc()
 
-    def getGameTime(self, html):
-        doc = pq(html)
-        game_list = doc('div.gameList')
+    def getGameTime(self, dom):
+        game_list = dom('div.gameList')
         event_time_mapping = {}
         for game in game_list:
             rows = game.cssselect('tr.GLInList')

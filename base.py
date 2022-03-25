@@ -10,6 +10,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import NoSuchElementException
+from pyquery import PyQuery as pq
 from bs4 import BeautifulSoup
 
 
@@ -170,7 +172,7 @@ class Base:
 
             f.write(text + '\n')
             f.close()
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             time.sleep(0.1)
 
@@ -184,3 +186,12 @@ class Base:
     def getHtml(self, _css):
         ele_scroll = self.waitBy("CSS", _css)
         return ele_scroll.get_attribute('innerHTML')
+    
+    def get_dom(self, selector):
+        try:
+            element = self.driver.find_element(By.CSS_SELECTOR, selector)
+            html_source = element.get_attribute('innerHTML')
+            return pq(html_source)
+        except NoSuchElementException:
+            pass
+        return pq(b'<html></html>')
