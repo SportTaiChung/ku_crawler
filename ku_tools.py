@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#attrib -*- coding: utf-8 -*-
 import re
 import time
 import traceback
@@ -64,21 +64,29 @@ class KuTools:
             traceback.print_exc()
 
     def getGameTime(self, dom):
-        game_list = dom('div.gameList')
+        game_list = dom.css('div.gameList')
         event_time_mapping = {}
         for game in game_list:
-            rows = game.cssselect('tr.GLInList')
+            rows = game.css('tr.GLInList')
             for row in rows:
                 try:
-                    event_id = row.attrib['rel']
-                    date_part = row.cssselect('div.GLInTBox_row.st span')[0].text
-                    time_part = row.cssselect('div.GLInTBox_row.rt font')[0].text
-                    names = row.cssselect('div.GLInTBox_nameT')
-                    home_team = pq(names[0]).text().strip()
-                    away_team = pq(names[1]).text().strip()
+                    event_id = row.attributes['rel']
+                    date_part = row.css_first('div.GLInTBox_row.st span')
+                    if date_part:
+                        date_part = date_part.text(strip=True)
+                    else:
+                        continue
+                    time_part = row.css_first('div.GLInTBox_row.rt font')
+                    if time_part:
+                        time_part = time_part.text(strip=True)
+                    else:
+                        continue
+                    names = row.css('div.GLInTBox_nameT')
+                    home_team = names[0].text(strip=True)
+                    away_team = names[1].text(strip=True)
                     if re.match(r'\d+-\d+', date_part) and re.match(r'\d+:\d+', time_part):
                         continue
-                except (IndexError, TypeError):
+                except (IndexError, TypeError, AttributeError):
                     pass
                 event_time_mapping[event_id] = {
                     'id': event_id,

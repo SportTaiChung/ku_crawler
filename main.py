@@ -98,6 +98,9 @@ if __name__ == '__main__':
     config = load_config(args)
     manager = mp.Manager()
     shared_dict = manager.dict()
+    # 更新status
+    with open('ku_crawler.status', 'w', encoding='utf-8') as status:
+        pass
     main_login(config)
     crawler_configs = setup_crawlers(config)
     crawlers = init_crawlers(config, crawler_configs, shared_dict)
@@ -109,6 +112,9 @@ if __name__ == '__main__':
     print('已完成所有爬蟲啟動')
     main_base.driver.quit()
     while KuTools.is_working_time(config['crawler_uptime_ranges']):
+        # 用檔案修改時間確認程式活著
+        with open('ku_crawler.status', 'w', encoding='utf-8') as status:
+            pass
         try:
             output = subprocess.run(['powershell.exe', '-Command', '(Get-Process -Name Chrome | measure-object -Line).Lines'], capture_output=True, check=True)
             chrome_process_num = int((output.stdout or '0').strip())

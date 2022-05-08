@@ -137,3 +137,10 @@ logs/
 tx_*.bin
 tx_*.log
 tx_*.json
+*.yml
+*.yaml
+chromedriver.exe
+config.ini
+*.status
+*.exe
+*.json

@@ -11,6 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
+from selectolax.lexbor import LexborHTMLParser
 from pyquery import PyQuery as pq
 from bs4 import BeautifulSoup
 
@@ -191,7 +192,7 @@ class Base:
         try:
             element = self.driver.find_element(By.CSS_SELECTOR, selector)
             html_source = element.get_attribute('innerHTML')
-            return pq(html_source)
+            return LexborHTMLParser(html_source)
         except NoSuchElementException:
             pass
-        return pq(b'<html></html>')
+        return LexborHTMLParser('')

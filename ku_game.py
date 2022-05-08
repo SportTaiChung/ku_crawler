@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+from math import ceil
 from multiprocessing import Process
 import time
 from time import perf_counter
@@ -10,6 +11,7 @@ from google.protobuf import text_format
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import JavascriptException, UnexpectedAlertPresentException, NoSuchElementException, WebDriverException
 import psutil
+from telegram import Bot
 import base
 import ku_tools as tools
 from upload import init_session, upload_data
@@ -46,13 +48,13 @@ class KuGame(Process):
         self.connection = None
         self.channel = None
         self._upload_status = True
+        self._bot = None
 
     def run(self):
-        self.heartbeat()
+        self._bot = Bot(self._config['telegram_token'])
         if not self._config['debug']:
             self.connection, self.channel = init_session(self._config['mq_url'])
         while self.tools.is_working_time(self._config['crawler_uptime_ranges']):
-            self.heartbeat()
             try:
                 if self.base.driver == None:
                     # 開啟視窗
@@ -123,6 +125,7 @@ class KuGame(Process):
             # if not self.check_websocket_alive():
             #     time.sleep(10)
             #     continue
+            self.check_and_click_messagebox()
             if not self.check_active_menu_item():
                 print('無法存取目標球種玩法，暫停更新')
                 self.base.sleep(30)
@@ -188,6 +191,7 @@ class KuGame(Process):
             end_close_scroll = perf_counter()
             stat['摺疊賽事'] = round(end_close_scroll - start_time, 3)
 
+            self.check_and_click_messagebox()
             if not self.check_active_menu_item():
                 print('無法存取目標球種玩法，暫停更新')
                 self.base.sleep(30)
@@ -207,7 +211,7 @@ class KuGame(Process):
             end_get_html = perf_counter()
             stat['取得資料'] = round(end_get_html - end_check_btn, 3)
 
-            if not dom('div:first'):
+            if not dom.css_first('div'):
                 self.check_and_wait_for_events()
                 continue
             end_check_data = perf_counter()
@@ -232,6 +236,15 @@ class KuGame(Process):
             print(
                 f'{self.name}, 狀態檢查={round(end_check_btn - start_time, 3)} 取得資料={stat["取得資料"]} 解析耗時={stat["解析耗時"]}，上傳耗時={stat["上傳耗時"]} 爬取時間={stat["執行耗時"]}秒'
             )
+
+    def split_tasks(self, dom):
+        leagues = dom.css('div.gameList')
+        if leagues:
+            data_bulks = []
+            for index in range(ceil(len(leagues) / 5)):
+                league_data_bulk = b''.join(league_row.raw_html for league_row in leagues[index:(index + 1) * 5])
+                data_bulks.append((league_data_bulk, self.parser_config))
+        return data_bulks
 
     def check_and_wait_for_events(self):
         while self.tools.is_working_time(self._config['crawler_uptime_ranges']):
@@ -349,6 +362,15 @@ class KuGame(Process):
             return False
         return True
 
+    def check_and_click_messagebox(self):
+        try:
+            has_alert, message = self.base.driver.execute_script('return [Alert.Status, Alert.Msg];')
+            if has_alert:
+                self.base.driver.execute_script('Alert.Confirm();')
+                self._bot.send_message(self._config['telegram_chat_id'], f'{self.name} KU網站跳出訊息: {message}，自動點擊確認')
+        except (JavascriptException, UnexpectedAlertPresentException):
+            pass
+
     def refresh_page(self, force=False):
         if force:
             print(f'{self.name} {datetime.now().isoformat(sep=" ")} 強制刷新頁面')
@@ -445,10 +467,13 @@ class KuGame(Process):
             print(self.name, '跳轉到時段標籤')
             try:
                 ele_btnPagemode.click()
-                self.base.sleep(1)
+                self.base.sleep(0.5)
             except Exception:
                 traceback.print_exc()
                 print(self.name, '無法切換球種時間類型')
+            print(self.name, '切到收藏夾')
+            self.base.driver.execute_script("Menu.ChangeSport(this, 'fv', 99);")
+            self.base.sleep(0.5)
             print(self.name, '切換玩法類型')
             if (self.gameIndex == "-1"):
                 btn = self.btn.replace('btn', ' ')
@@ -485,7 +510,8 @@ class KuGame(Process):
             print(f'注入滾動賽事卷軸JS失敗: {ex.msg}')
 
     def heartbeat(self):
-        self._shared_dict[self._crawler_id] = {
-            'pids': self._pids,
-            'update_timestamp': time.time()
-        }
+        if 'bbview/Games.aspx' in self.base.driver.current_url:
+            self._shared_dict[self._crawler_id] = {
+                'pids': self._pids,
+                'update_timestamp': time.time()
+            }
